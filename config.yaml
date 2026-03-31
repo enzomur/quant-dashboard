@@ -271,3 +271,36 @@ pca:
 scanner:
   batch_size: 50
   max_workers: 4
+
+auto_optimizer:
+  # Risk profile: conservative, moderate, aggressive
+  risk_profile: "moderate"
+
+  # Auto-scan settings
+  universe: "SP500"
+  scan_on_load: true
+  cache_scan_minutes: 30
+
+  # Signal thresholds (pre-tuned defaults)
+  min_composite_score: 0.35
+  min_kelly_pct: 0.03
+  max_alpha_pvalue: 0.10
+
+  # Portfolio settings
+  max_positions: 10
+  max_single_position: 0.20
+  max_sector_weight: 0.35
+  portfolio_value: 100000
+
+  # Risk management
+  default_stop_loss_pct: 0.08
+  default_take_profit_pct: 0.20
+
+  # Pre-tuned factor weights (optimized for Sharpe)
+  factor_weights:
+    momentum: 0.20
+    value: 0.15
+    quality: 0.20
+    volatility: 0.15
+    technical: 0.15
+    sentiment: 0.15

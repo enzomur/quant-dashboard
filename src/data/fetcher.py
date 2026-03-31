@@ -74,25 +74,39 @@ SP500_TICKERS = [
 class DataFetcher:
     """Fetch and cache financial data from yfinance."""
 
-    def __init__(self, cache_dir: Optional[str] = None, cache_ttl_hours: int = 24):
+    def __init__(
+        self,
+        cache_dir: Optional[str] = None,
+        cache_ttl_hours: int = 24,
+        fundamentals_cache_ttl_days: int = 7
+    ):
         self.cache_ttl_hours = cache_ttl_hours
+        self.fundamentals_cache_ttl_hours = fundamentals_cache_ttl_days * 24
         if cache_dir is None:
             self.cache_dir = Path.home() / ".quant_dashboard_cache"
         else:
             self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
+        # Separate directory for fundamentals cache
+        self.fundamentals_cache_dir = self.cache_dir / "fundamentals"
+        self.fundamentals_cache_dir.mkdir(parents=True, exist_ok=True)
 
     def _get_cache_key(self, ticker: str, period: str, interval: str) -> str:
         """Generate a unique cache key."""
         key = f"{ticker}_{period}_{interval}"
         return hashlib.md5(key.encode()).hexdigest()
 
-    def _is_cache_valid(self, cache_path: Path) -> bool:
+    def _is_cache_valid(self, cache_path: Path, ttl_hours: Optional[int] = None) -> bool:
         """Check if cache file is still valid."""
         if not cache_path.exists():
             return False
         mtime = datetime.fromtimestamp(cache_path.stat().st_mtime)
-        return datetime.now() - mtime < timedelta(hours=self.cache_ttl_hours)
+        ttl = ttl_hours if ttl_hours is not None else self.cache_ttl_hours
+        return datetime.now() - mtime < timedelta(hours=ttl)
+
+    def _get_fundamentals_cache_key(self, ticker: str) -> str:
+        """Generate cache key for fundamentals."""
+        return hashlib.md5(f"fundamentals_{ticker}".encode()).hexdigest()
 
     def fetch_prices(
         self,
@@ -439,3 +453,248 @@ class DataFetcher:
                     progress_callback(completed, total)
 
         return prices_dict
+
+    def fetch_fundamentals(
+        self,
+        ticker: str,
+        use_cache: bool = True
+    ) -> dict:
+        """
+        Fetch fundamental data for a ticker from yfinance .info.
+
+        Args:
+            ticker: Stock ticker symbol
+            use_cache: Whether to use cached data (7-day TTL)
+
+        Returns:
+            Dict with fundamental data fields
+        """
+        cache_key = self._get_fundamentals_cache_key(ticker)
+        cache_path = self.fundamentals_cache_dir / f"{cache_key}.pkl"
+
+        if use_cache and self._is_cache_valid(cache_path, self.fundamentals_cache_ttl_hours):
+            try:
+                with open(cache_path, 'rb') as f:
+                    return pickle.load(f)
+            except Exception:
+                pass  # Cache corrupted, fetch fresh
+
+        try:
+            stock = yf.Ticker(ticker)
+            info = stock.info
+
+            # Extract key fundamental fields from info
+            fundamentals = {
+                'ticker': ticker,
+                # Identification
+                'sector': info.get('sector', ''),
+                'industry': info.get('industry', ''),
+                'market_cap': info.get('marketCap', None),
+                # Valuation
+                'pe_ratio': info.get('trailingPE', None),
+                'forward_pe': info.get('forwardPE', None),
+                'pb_ratio': info.get('priceToBook', None),
+                'ps_ratio': info.get('priceToSalesTrailing12Months', None),
+                'peg_ratio': info.get('pegRatio', None),
+                'ev_ebitda': info.get('enterpriseToEbitda', None),
+                'ev_revenue': info.get('enterpriseToRevenue', None),
+                # Profitability
+                'profit_margin': info.get('profitMargins', None),
+                'operating_margin': info.get('operatingMargins', None),
+                'gross_margin': info.get('grossMargins', None),
+                'roe': info.get('returnOnEquity', None),
+                'roa': info.get('returnOnAssets', None),
+                # Growth
+                'revenue_growth': info.get('revenueGrowth', None),
+                'earnings_growth': info.get('earningsGrowth', None),
+                'earnings_quarterly_growth': info.get('earningsQuarterlyGrowth', None),
+                # Financial health
+                'current_ratio': info.get('currentRatio', None),
+                'quick_ratio': info.get('quickRatio', None),
+                'debt_to_equity': info.get('debtToEquity', None),
+                'total_debt': info.get('totalDebt', None),
+                'total_cash': info.get('totalCash', None),
+                'free_cash_flow': info.get('freeCashflow', None),
+                'operating_cash_flow': info.get('operatingCashflow', None),
+                # Per share
+                'book_value': info.get('bookValue', None),
+                'eps_trailing': info.get('trailingEps', None),
+                'eps_forward': info.get('forwardEps', None),
+                'revenue_per_share': info.get('revenuePerShare', None),
+                # Dividends
+                'dividend_yield': info.get('dividendYield', None),
+                'dividend_rate': info.get('dividendRate', None),
+                'payout_ratio': info.get('payoutRatio', None),
+                # Sentiment/Analyst
+                'recommendation_mean': info.get('recommendationMean', None),
+                'recommendation_key': info.get('recommendationKey', None),
+                'target_mean_price': info.get('targetMeanPrice', None),
+                'target_high_price': info.get('targetHighPrice', None),
+                'target_low_price': info.get('targetLowPrice', None),
+                'number_of_analyst_opinions': info.get('numberOfAnalystOpinions', None),
+                # Short interest
+                'short_ratio': info.get('shortRatio', None),
+                'short_percent_of_float': info.get('shortPercentOfFloat', None),
+                'shares_short': info.get('sharesShort', None),
+                # Ownership
+                'held_percent_insiders': info.get('heldPercentInsiders', None),
+                'held_percent_institutions': info.get('heldPercentInstitutions', None),
+                # Income statement items (from info)
+                'total_revenue': info.get('totalRevenue', None),
+                'gross_profit': info.get('grossProfits', None),
+                'ebitda': info.get('ebitda', None),
+                'net_income': info.get('netIncomeToCommon', None),
+                # Balance sheet items (from info - often missing)
+                'total_assets': info.get('totalAssets', None),
+                'total_current_assets': info.get('totalCurrentAssets', None),
+                'total_current_liabilities': info.get('totalCurrentLiabilities', None),
+                'total_stockholder_equity': info.get('totalStockholderEquity', None),
+                # Other
+                'beta': info.get('beta', None),
+                'fifty_two_week_high': info.get('fiftyTwoWeekHigh', None),
+                'fifty_two_week_low': info.get('fiftyTwoWeekLow', None),
+                'avg_volume': info.get('averageVolume', None),
+                'avg_volume_10d': info.get('averageVolume10days', None),
+            }
+
+            # Fetch balance sheet data if key items are missing (for Altman Z-Score)
+            if fundamentals['total_assets'] is None:
+                try:
+                    bs = stock.balance_sheet
+                    if bs is not None and not bs.empty:
+                        # Get most recent column (latest period)
+                        latest = bs.iloc[:, 0] if len(bs.columns) > 0 else pd.Series()
+
+                        # Helper to safely get value
+                        def get_bs_value(names):
+                            for name in names:
+                                if name in latest.index:
+                                    val = latest[name]
+                                    if pd.notna(val):
+                                        return float(val)
+                            return None
+
+                        # Total Assets
+                        if fundamentals['total_assets'] is None:
+                            fundamentals['total_assets'] = get_bs_value([
+                                'Total Assets', 'TotalAssets'
+                            ])
+
+                        # Current Assets
+                        if fundamentals['total_current_assets'] is None:
+                            fundamentals['total_current_assets'] = get_bs_value([
+                                'Total Current Assets', 'CurrentAssets', 'Current Assets'
+                            ])
+
+                        # Current Liabilities
+                        if fundamentals['total_current_liabilities'] is None:
+                            fundamentals['total_current_liabilities'] = get_bs_value([
+                                'Total Current Liabilities', 'CurrentLiabilities', 'Current Liabilities'
+                            ])
+
+                        # Stockholder Equity
+                        if fundamentals['total_stockholder_equity'] is None:
+                            fundamentals['total_stockholder_equity'] = get_bs_value([
+                                'Total Stockholders Equity', 'Stockholders Equity',
+                                'Total Equity Gross Minority Interest', 'Common Stock Equity'
+                            ])
+
+                        # Total Debt (if missing)
+                        if fundamentals['total_debt'] is None:
+                            fundamentals['total_debt'] = get_bs_value([
+                                'Total Debt', 'TotalDebt', 'Long Term Debt', 'LongTermDebt'
+                            ])
+
+                except Exception:
+                    pass  # Balance sheet fetch failed, continue with what we have
+
+            # Fetch income statement data if EBITDA is missing
+            if fundamentals['ebitda'] is None or fundamentals['total_revenue'] is None:
+                try:
+                    inc = stock.financials
+                    if inc is not None and not inc.empty:
+                        latest = inc.iloc[:, 0] if len(inc.columns) > 0 else pd.Series()
+
+                        def get_inc_value(names):
+                            for name in names:
+                                if name in latest.index:
+                                    val = latest[name]
+                                    if pd.notna(val):
+                                        return float(val)
+                            return None
+
+                        if fundamentals['ebitda'] is None:
+                            fundamentals['ebitda'] = get_inc_value([
+                                'EBITDA', 'Normalized EBITDA'
+                            ])
+
+                        if fundamentals['total_revenue'] is None:
+                            fundamentals['total_revenue'] = get_inc_value([
+                                'Total Revenue', 'TotalRevenue', 'Revenue'
+                            ])
+
+                        if fundamentals['gross_profit'] is None:
+                            fundamentals['gross_profit'] = get_inc_value([
+                                'Gross Profit', 'GrossProfit'
+                            ])
+
+                        if fundamentals['net_income'] is None:
+                            fundamentals['net_income'] = get_inc_value([
+                                'Net Income', 'NetIncome', 'Net Income Common Stockholders'
+                            ])
+
+                except Exception:
+                    pass  # Income statement fetch failed
+
+            # Cache the results (ensure directory exists)
+            self.fundamentals_cache_dir.mkdir(parents=True, exist_ok=True)
+            with open(cache_path, 'wb') as f:
+                pickle.dump(fundamentals, f)
+
+            return fundamentals
+
+        except Exception as e:
+            print(f"Error fetching fundamentals for {ticker}: {e}")
+            return {'ticker': ticker, 'error': str(e)}
+
+    def fetch_fundamentals_batch(
+        self,
+        tickers: List[str],
+        use_cache: bool = True,
+        max_workers: int = 10,
+        progress_callback=None
+    ) -> dict:
+        """
+        Fetch fundamental data for multiple tickers in parallel.
+
+        Args:
+            tickers: List of ticker symbols
+            use_cache: Whether to use cached data
+            max_workers: Number of parallel workers
+            progress_callback: Optional callback(completed, total)
+
+        Returns:
+            Dict of ticker -> fundamentals dict
+        """
+        fundamentals_dict = {}
+        total = len(tickers)
+        completed = 0
+
+        def fetch_single(ticker):
+            try:
+                return ticker, self.fetch_fundamentals(ticker, use_cache)
+            except Exception:
+                return ticker, {'ticker': ticker, 'error': 'fetch failed'}
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {executor.submit(fetch_single, t): t for t in tickers}
+
+            for future in as_completed(futures):
+                ticker, data = future.result()
+                if 'error' not in data:
+                    fundamentals_dict[ticker] = data
+                completed += 1
+                if progress_callback:
+                    progress_callback(completed, total)
+
+        return fundamentals_dict

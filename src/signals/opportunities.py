@@ -4,6 +4,7 @@ Opportunity scanner combining all analysis modules.
 Now includes:
 - Kelly Criterion for position sizing
 - GARCH for volatility forecasting
+- Enhanced factors: Quality, Valuation, Sentiment, Technical, Volatility, Liquidity, Sector
 """
 
 import numpy as np
@@ -21,6 +22,16 @@ from ..statistics.garch import GARCHModel, VolatilityForecast
 from ..linalg.pca import PCAAnalyzer
 from ..linalg.covariance import CovarianceEstimator
 from ..optimization.kelly import KellyCriterion, KellyResult
+
+# Import new factor modules
+from ..factors.fundamentals import FundamentalFactors, PiotroskiScore, AltmanZScore
+from ..factors.valuation import ValuationFactors
+from ..factors.sentiment import SentimentFactors
+from ..factors.technical import TechnicalFactors
+from ..factors.volatility import AdvancedVolatilityFactors
+from ..factors.liquidity import LiquidityFactors
+from ..factors.sector import SectorFactors
+from ..factors.composite import CompositeFactorCalculator, CompositeFactorConfig
 
 
 @dataclass
@@ -54,6 +65,30 @@ class Opportunity:
     risk_reward: float = 0.0         # Reward/Risk ratio
     hold_days: int = 0               # Suggested hold period
     exit_signal: str = ""            # Description of exit strategy
+    # NEW: Quality factors
+    quality_score: float = 0.0
+    piotroski_f_score: int = 0
+    altman_z_score: float = 0.0
+    # NEW: Valuation factors
+    valuation_score: float = 0.0
+    pe_ratio: Optional[float] = None
+    pb_ratio: Optional[float] = None
+    # NEW: Sentiment factors
+    sentiment_score: float = 0.0
+    short_ratio: Optional[float] = None
+    analyst_rating: str = ""
+    # NEW: Technical factors
+    technical_score: float = 0.0
+    rsi_14: Optional[float] = None
+    macd_signal: str = ""
+    # NEW: Advanced volatility
+    regime: str = ""
+    leverage_effect: float = 0.0
+    # NEW: Liquidity factors
+    liquidity_score: float = 0.0
+    # NEW: Sector factors
+    sector: str = ""
+    sector_score: float = 0.0
     signals: Dict[str, Any] = field(default_factory=dict)
 
 
@@ -67,13 +102,15 @@ class OpportunityScanner:
     - PCA residuals (mean reversion)
     - Momentum signals
     - Volatility analysis
+    - NEW: Quality, Valuation, Sentiment, Technical, Liquidity, Sector factors
     """
 
     def __init__(
         self,
         tickers: List[str],
         fetcher: Optional[DataFetcher] = None,
-        period: str = "2y"
+        period: str = "2y",
+        factor_config: Optional[CompositeFactorConfig] = None
     ):
         """
         Initialize scanner.
@@ -82,6 +119,7 @@ class OpportunityScanner:
             tickers: List of tickers to scan
             fetcher: DataFetcher instance (creates one if None)
             period: Data period to fetch
+            factor_config: Optional factor weight configuration
         """
         self.tickers = tickers
         self.fetcher = fetcher or DataFetcher()
@@ -89,6 +127,17 @@ class OpportunityScanner:
         self._data_loaded = False
         self._returns_matrix: Optional[pd.DataFrame] = None
         self._market_returns: Optional[pd.Series] = None
+        self._fundamentals_cache: Dict[str, dict] = {}
+
+        # Initialize factor calculators
+        self.fundamental_factors = FundamentalFactors()
+        self.valuation_factors = ValuationFactors()
+        self.sentiment_factors = SentimentFactors()
+        self.technical_factors = TechnicalFactors()
+        self.volatility_factors = AdvancedVolatilityFactors()
+        self.liquidity_factors = LiquidityFactors()
+        self.sector_factors = SectorFactors()
+        self.composite_calculator = CompositeFactorCalculator(factor_config)
 
     def load_data(self):
         """Load all required data."""
@@ -364,7 +413,164 @@ class OpportunityScanner:
             except Exception:
                 pass
 
-            # 12. Exit Signal Calculations
+            # ===== NEW FACTOR CALCULATIONS =====
+
+            # 12. Fetch Fundamentals and Calculate Quality Score
+            quality_score = 0.0
+            piotroski_f_score = 5  # Default neutral
+            altman_z_score = 3.0  # Default safe
+            quality_result = None
+            fundamentals = {}
+            sector = ""
+
+            try:
+                fundamentals = self.fetcher.fetch_fundamentals(ticker)
+                if fundamentals and 'error' not in fundamentals:
+                    sector = fundamentals.get('sector', '')
+                    quality_result = self.fundamental_factors.calculate(fundamentals)
+                    quality_score = quality_result.normalized_score
+
+                    # Get Piotroski and Altman scores
+                    piotroski = self.fundamental_factors.calculate_piotroski(fundamentals)
+                    piotroski_f_score = piotroski.total_score
+
+                    altman = self.fundamental_factors.calculate_altman_z(fundamentals)
+                    altman_z_score = altman.z_score
+
+                    signals['piotroski_f_score'] = piotroski_f_score
+                    signals['altman_z_score'] = altman_z_score
+                    signals['quality_score'] = quality_score
+            except Exception:
+                pass
+
+            # 13. Valuation Score
+            valuation_score = 0.0
+            pe_ratio = None
+            pb_ratio = None
+            valuation_result = None
+
+            try:
+                if fundamentals:
+                    valuation_result = self.valuation_factors.calculate(fundamentals, sector)
+                    valuation_score = valuation_result.normalized_score
+                    pe_ratio = fundamentals.get('pe_ratio')
+                    pb_ratio = fundamentals.get('pb_ratio')
+                    signals['valuation_score'] = valuation_score
+                    signals['pe_ratio'] = pe_ratio
+                    signals['pb_ratio'] = pb_ratio
+            except Exception:
+                pass
+
+            # 14. Sentiment Score
+            sentiment_score = 0.0
+            short_ratio = None
+            analyst_rating = ""
+            sentiment_result = None
+
+            try:
+                if fundamentals:
+                    sentiment_result = self.sentiment_factors.calculate(fundamentals, current_price)
+                    sentiment_score = sentiment_result.normalized_score
+                    short_ratio = fundamentals.get('short_ratio')
+                    analyst_rating = self.sentiment_factors.get_analyst_summary(fundamentals)
+                    signals['sentiment_score'] = sentiment_score
+                    signals['short_ratio'] = short_ratio
+                    signals['analyst_rating'] = analyst_rating
+            except Exception:
+                pass
+
+            # 15. Technical Score
+            technical_score = 0.0
+            rsi_14 = None
+            macd_signal_str = ""
+            technical_result = None
+
+            try:
+                technical_result = self.technical_factors.calculate(prices, returns)
+                technical_score = technical_result.normalized_score
+                indicators = self.technical_factors.get_indicators(prices)
+                rsi_14 = indicators.rsi_14
+                macd_signal_str = indicators.macd_signal or ""
+                signals['technical_score'] = technical_score
+                signals['rsi_14'] = rsi_14
+                signals['macd_signal'] = macd_signal_str
+            except Exception:
+                pass
+
+            # 16. Advanced Volatility Score
+            volatility_score = 0.0
+            regime = volatility_regime
+            leverage_effect = 0.0
+            volatility_result = None
+
+            try:
+                volatility_result = self.volatility_factors.calculate(returns, prices)
+                volatility_score = volatility_result.normalized_score
+
+                gjr_result = self.volatility_factors.fit_gjr_garch(returns)
+                leverage_effect = gjr_result.gamma
+
+                regime_result = self.volatility_factors.fit_regime_switching(returns)
+                regime = regime_result.current_regime
+
+                signals['volatility_score'] = volatility_score
+                signals['leverage_effect'] = leverage_effect
+                signals['regime'] = regime
+            except Exception:
+                pass
+
+            # 17. Liquidity Score
+            liquidity_score = 0.0
+            liquidity_result = None
+
+            try:
+                liquidity_result = self.liquidity_factors.calculate(prices, returns)
+                liquidity_score = liquidity_result.normalized_score
+                signals['liquidity_score'] = liquidity_score
+            except Exception:
+                pass
+
+            # 18. Sector Score
+            sector_score = 0.0
+            sector_result = None
+
+            try:
+                # Note: Full sector analysis requires sector ETF returns
+                # For now, use simplified relative strength
+                sector_result = self.sector_factors.calculate(
+                    returns, sector, sector_returns=None
+                )
+                sector_score = sector_result.normalized_score
+                signals['sector_score'] = sector_score
+                signals['sector'] = sector
+            except Exception:
+                pass
+
+            # 19. Calculate NEW Composite Score using all factors
+            composite_result = self.composite_calculator.calculate_composite_score(
+                conditional_prob_edge=max_edge,
+                alpha=alpha,
+                alpha_pvalue=alpha_pvalue,
+                momentum_score=momentum_score,
+                mean_reversion_score=mean_reversion_score,
+                bayesian_prob=momentum_prob,
+                pca_residual=pca_residual,
+                quality_result=quality_result,
+                valuation_result=valuation_result,
+                sentiment_result=sentiment_result,
+                technical_result=technical_result,
+                volatility_result=volatility_result,
+                liquidity_result=liquidity_result,
+                sector_result=sector_result,
+                piotroski_f_score=piotroski_f_score,
+                altman_z_score=altman_z_score
+            )
+
+            # Use the new composite score
+            composite_score = composite_result.composite_score
+            signals['factor_contributions'] = composite_result.factor_contributions
+
+            # 20. Exit Signal Calculations
             # Stop Loss: Based on VaR (95% confidence) using GARCH volatility
             # For a 20-day holding period, scale daily vol
             daily_vol = garch_forecast_vol / np.sqrt(252) if garch_forecast_vol > 0 else historical_vol / np.sqrt(252)
@@ -489,6 +695,30 @@ class OpportunityScanner:
                 risk_reward=risk_reward,
                 hold_days=hold_days,
                 exit_signal=exit_signal,
+                # NEW: Quality factors
+                quality_score=quality_score,
+                piotroski_f_score=piotroski_f_score,
+                altman_z_score=altman_z_score,
+                # NEW: Valuation factors
+                valuation_score=valuation_score,
+                pe_ratio=pe_ratio,
+                pb_ratio=pb_ratio,
+                # NEW: Sentiment factors
+                sentiment_score=sentiment_score,
+                short_ratio=short_ratio,
+                analyst_rating=analyst_rating,
+                # NEW: Technical factors
+                technical_score=technical_score,
+                rsi_14=rsi_14,
+                macd_signal=macd_signal_str,
+                # NEW: Advanced volatility
+                regime=regime,
+                leverage_effect=leverage_effect,
+                # NEW: Liquidity
+                liquidity_score=liquidity_score,
+                # NEW: Sector
+                sector=sector,
+                sector_score=sector_score,
                 signals=signals
             )
 
@@ -512,6 +742,7 @@ class OpportunityScanner:
                 opportunities.append({
                     'Rank': 0,  # Will be set after sorting
                     'Ticker': opp.ticker,
+                    'Sector': opp.sector,
                     'Strategy': opp.strategy_type,
                     'Action': opp.action,
                     'Current Price': opp.current_price,
@@ -520,6 +751,7 @@ class OpportunityScanner:
                     'Target': opp.target_price,
                     'R:R': opp.risk_reward,
                     'Composite Score': opp.composite_score,
+                    # Original factors
                     'Cond. Prob Edge': opp.conditional_prob_edge,
                     'Alpha (Annual)': opp.alpha,
                     'Alpha p-value': opp.alpha_pvalue,
@@ -527,6 +759,29 @@ class OpportunityScanner:
                     'Mean Reversion': opp.mean_reversion_score,
                     'PCA Residual': opp.pca_residual,
                     'Vol Regime': opp.volatility_regime,
+                    # NEW: Quality factors
+                    'Quality Score': opp.quality_score,
+                    'Piotroski F': opp.piotroski_f_score,
+                    'Altman Z': opp.altman_z_score,
+                    # NEW: Valuation
+                    'Valuation Score': opp.valuation_score,
+                    'P/E': opp.pe_ratio,
+                    'P/B': opp.pb_ratio,
+                    # NEW: Sentiment
+                    'Sentiment Score': opp.sentiment_score,
+                    'Short Ratio': opp.short_ratio,
+                    'Analyst': opp.analyst_rating,
+                    # NEW: Technical
+                    'Technical Score': opp.technical_score,
+                    'RSI': opp.rsi_14,
+                    'MACD': opp.macd_signal,
+                    # NEW: Advanced Volatility
+                    'Regime': opp.regime,
+                    'Leverage Effect': opp.leverage_effect,
+                    # NEW: Liquidity
+                    'Liquidity Score': opp.liquidity_score,
+                    # NEW: Sector
+                    'Sector Score': opp.sector_score,
                     # Kelly position sizing
                     'Kelly %': opp.recommended_position,
                     'Kelly Edge': opp.kelly_edge,
