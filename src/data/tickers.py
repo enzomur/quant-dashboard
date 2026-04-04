@@ -488,6 +488,378 @@ MLPS = [
     "CEQP", "ENLC", "SMLP", "NGL", "PSXP", "DCP", "TRGP", "AM", "ETRN", "KNTK"
 ]
 
+# ============================================================================
+# EXPANDED UNIVERSE - ETFs, GLOBAL, CRYPTO, COMMODITIES
+# ============================================================================
+
+# Sector ETFs (comprehensive)
+SECTOR_ETFS_FULL = [
+    # SPDR Select Sector
+    "XLK", "XLV", "XLF", "XLY", "XLP", "XLE", "XLI", "XLB", "XLU", "XLRE", "XLC",
+    # Vanguard Sector
+    "VGT", "VHT", "VFH", "VCR", "VDC", "VDE", "VIS", "VAW", "VPU", "VNQ", "VOX",
+    # iShares Sector
+    "IYW", "IYH", "IYF", "IYC", "IYK", "IYE", "IYJ", "IYM", "IDU", "IYR", "IYZ",
+    # Fidelity Sector
+    "FTEC", "FHLC", "FNCL", "FDIS", "FSTA", "FENY", "FIDU", "FMAT", "FUTY", "FREL", "FCOM"
+]
+
+# Country/Region ETFs
+COUNTRY_ETFS = [
+    # Developed Markets
+    "EFA", "VEA", "IEFA", "SCHF",  # Developed ex-US
+    "EWJ", "DXJ", "HEWJ",  # Japan
+    "EWG", "HEWG",  # Germany
+    "EWU", "HEWU",  # UK
+    "EWQ",  # France
+    "EWL",  # Switzerland
+    "EWA",  # Australia
+    "EWC",  # Canada
+    "EWP",  # Spain
+    "EWI",  # Italy
+    "EWN",  # Netherlands
+    "EWK",  # Belgium
+    "EWD",  # Sweden
+    "ENOR",  # Norway
+    "EDEN",  # Denmark
+    "EFNL",  # Finland
+    "EWS",  # Singapore
+    "EWH",  # Hong Kong
+    "EWT",  # Taiwan
+    "EWY",  # South Korea
+    "EIRL",  # Ireland
+    "EIS",  # Israel
+    "ENZL",  # New Zealand
+    # Emerging Markets
+    "EEM", "VWO", "IEMG", "SCHE",  # Broad EM
+    "FXI", "MCHI", "KWEB", "CQQQ", "ASHR", "GXC",  # China
+    "EWZ", "EWZS",  # Brazil
+    "INDA", "SMIN", "EPI",  # India
+    "EWW",  # Mexico
+    "RSX", "ERUS",  # Russia
+    "TUR",  # Turkey
+    "EZA",  # South Africa
+    "THD",  # Thailand
+    "EIDO",  # Indonesia
+    "EPU",  # Peru
+    "ECH",  # Chile
+    "ARGT",  # Argentina
+    "EWM",  # Malaysia
+    "EPHE",  # Philippines
+    "VNM",  # Vietnam
+    "PAK",  # Pakistan
+    "EGPT",  # Egypt
+    "NGE",  # Nigeria
+    "KSA",  # Saudi Arabia
+    "UAE",  # UAE
+    "QAT",  # Qatar
+    # Regional
+    "VGK", "IEV", "FEZ",  # Europe
+    "AAXJ", "VPL",  # Asia Pacific
+    "EWX", "GMF",  # Emerging Asia
+    "GML", "ILF",  # Latin America
+    "AFK", "FM",  # Africa/Frontier
+    "GULF",  # Middle East
+]
+
+# Bond/Fixed Income ETFs
+BOND_ETFS = [
+    # Treasury
+    "TLT", "IEF", "SHY", "GOVT", "VGIT", "VGLT", "SCHO", "SCHR",  # US Treasury
+    "TIP", "STIP", "VTIP", "SCHP",  # TIPS/Inflation Protected
+    "BIL", "SHV", "SGOV",  # T-Bills/Short-term
+    # Corporate
+    "LQD", "VCIT", "IGIB",  # Investment Grade Corporate
+    "HYG", "JNK", "USHY", "SHYG",  # High Yield
+    "VCSH", "IGSB",  # Short-term Corporate
+    # Municipal
+    "MUB", "VTEB", "TFI", "HYD",  # Munis
+    # International
+    "BNDX", "IAGG", "BWX",  # International Bonds
+    "EMB", "VWOB", "PCY",  # Emerging Market Bonds
+    # Aggregate
+    "AGG", "BND", "SCHZ",  # US Aggregate
+    # Floating Rate
+    "FLOT", "FLRN",  # Floating Rate
+    # Convertibles
+    "CWB", "ICVT",  # Convertible Bonds
+    # Mortgage-Backed
+    "MBB", "VMBS", "SPMB",  # MBS
+]
+
+# Commodity ETFs
+COMMODITY_ETFS = [
+    # Broad Commodities
+    "DJP", "GSG", "PDBC", "DBC", "USCI", "BCI",
+    # Gold
+    "GLD", "IAU", "GLDM", "SGOL", "BAR", "OUNZ",
+    # Silver
+    "SLV", "SIVR", "PSLV",
+    # Platinum/Palladium
+    "PPLT", "PALL",
+    # Oil/Energy
+    "USO", "BNO", "USL", "UNG", "BOIL", "KOLD",
+    # Agriculture
+    "DBA", "CORN", "WEAT", "SOYB", "CANE", "JO", "NIB", "COW",
+    # Metals
+    "DBB", "CPER", "JJC",  # Base Metals
+    # Timber/Wood
+    "WOOD", "CUT",
+]
+
+# Factor/Smart Beta ETFs
+FACTOR_ETFS = [
+    # Value
+    "VTV", "IWD", "SCHV", "VLUE", "RPV", "VONV",
+    # Growth
+    "VUG", "IWF", "SCHG", "VONG", "RPG", "IWY",
+    # Momentum
+    "MTUM", "PDP", "DWAS",
+    # Quality
+    "QUAL", "SPHQ", "DGRW",
+    # Low Volatility
+    "USMV", "SPLV", "SPHD",
+    # Dividend
+    "VIG", "SCHD", "DVY", "SDY", "HDV", "DGRO", "NOBL", "VYM", "SPYD",
+    # Size (Small/Mid)
+    "IJR", "VB", "IWM", "SCHA", "VBR", "VBK",  # Small Cap
+    "IJH", "VO", "IWR", "SCHM",  # Mid Cap
+    # Multi-Factor
+    "GSLC", "LRGF", "SMLF",
+]
+
+# Thematic/Industry ETFs
+THEMATIC_ETFS = [
+    # Technology Themes
+    "ARKK", "ARKW", "ARKF", "ARKG", "ARKQ",  # ARK Innovation
+    "QQQ", "QQQM", "QQQJ",  # NASDAQ
+    "SKYY", "WCLD", "CLOU",  # Cloud Computing
+    "HACK", "CIBR", "BUG",  # Cybersecurity
+    "BOTZ", "ROBO", "IRBO",  # Robotics/AI
+    "SOXX", "SMH", "XSD", "PSI",  # Semiconductors
+    "FINX", "ARKF", "IPAY",  # Fintech
+    "SOCL", "BUZZ",  # Social Media
+    "IGV", "WCLD",  # Software
+    "XBI", "IBB", "ARKG",  # Biotech
+    "ESPO", "HERO", "GAMR",  # Gaming/Esports
+    "DRIV", "IDRV", "KARS",  # Electric Vehicles
+    "LIT", "BATT",  # Lithium/Battery
+    "TAN", "ICLN", "QCLN", "PBW",  # Clean Energy/Solar
+    "FAN", "ACES",  # Wind
+    "PHO", "FIW", "CGW",  # Water
+    "JETS", "AWAY",  # Airlines/Travel
+    "NERD", "BETZ",  # Online Gambling
+    "MOON", "UFO",  # Space
+    "GNOM", "HELX",  # Genomics
+    "PRNT", "BLOK",  # 3D Printing / Blockchain
+    "MSOS", "MJ", "YOLO",  # Cannabis
+    "METV", "META",  # Metaverse
+    "AIQ", "ROBT",  # AI
+]
+
+# Leveraged & Inverse ETFs (use with caution)
+LEVERAGED_ETFS = [
+    # Bull 2x/3x
+    "SSO", "UPRO", "SPXL",  # S&P 500
+    "QLD", "TQQQ",  # NASDAQ
+    "DDM", "UDOW",  # Dow
+    "UWM", "TNA",  # Russell 2000
+    "ROM",  # Technology
+    "UYG",  # Financials
+    "ERX", "GUSH",  # Energy
+    "NUGT", "JNUG",  # Gold Miners
+    "AGQ",  # Silver
+    "UCO",  # Oil
+    # Bear 2x/3x (Inverse)
+    "SH", "SDS", "SPXS", "SPXU",  # S&P 500 Inverse
+    "PSQ", "QID", "SQQQ",  # NASDAQ Inverse
+    "DOG", "DXD", "SDOW",  # Dow Inverse
+    "RWM", "TWM", "TZA",  # Russell Inverse
+    "ERY", "DRIP",  # Energy Inverse
+    "DUST", "JDST",  # Gold Miners Inverse
+    "ZSL",  # Silver Inverse
+    "SCO",  # Oil Inverse
+    # VIX
+    "VXX", "UVXY", "SVXY", "VIXY",
+]
+
+# Global/International ADRs (Expanded)
+INTERNATIONAL_EXPANDED = [
+    # China (Expanded)
+    "BABA", "JD", "PDD", "BIDU", "NIO", "XPEV", "LI", "TME", "BILI", "IQ",
+    "VNET", "FUTU", "TIGR", "TAL", "EDU", "YMM", "ZTO", "QFIN", "VIPS",
+    "BEKE", "KC", "DOYU", "HUYA", "WB", "ATHM", "YY", "BZUN", "MNSO",
+    "LEGN", "ZLAB", "BGNE", "HTHT", "TCOM", "GDS", "VNET", "KC",
+    # Japan (Expanded)
+    "TM", "SONY", "HMC", "MUFG", "SMFG", "MFG", "NMR", "NTDOY", "SNE",
+    "CAJ", "MRAAY", "FANUY", "DSCSY", "DNZOY", "KYOCY", "FUJIY",
+    # Europe (Expanded)
+    "ASML", "NVO", "SAP", "AZN", "GSK", "SNY", "NVS", "UL", "DEO", "BTI",
+    "BP", "SHEL", "TTE", "EQNR", "SPOT", "SE", "GRAB", "MELI",
+    "RELX", "RIO", "BHP", "NGG", "LYG", "VOD", "HSBC", "BCS", "DB",
+    "ING", "BBVA", "SAN", "CS", "UBS", "PHG", "NXPI", "STM", "ERIC", "NOK",
+    "LOGI", "ABB", "RACE", "PRMW",
+    # UK (Expanded)
+    "HSBC", "RIO", "BHP", "LYG", "VOD", "NGG", "BTI", "BP", "SHEL", "GSK", "AZN",
+    "BCS", "RELX", "DEO", "UL", "ARMHY",
+    # India (Expanded)
+    "INFY", "WIT", "HDB", "IBN", "TTM", "SIFY", "WNS", "RDY", "VEDL",
+    "YTRA", "MMYT",
+    # Brazil (Expanded)
+    "VALE", "PBR", "ITUB", "BBD", "ABEV", "SID", "GGB", "ERJ", "CIG",
+    "EBR", "BRFS", "SBS", "PAGS", "STNE", "NU", "XP",
+    # Korea (Expanded)
+    "PKX", "KB", "SHG", "WF", "LPL", "SKM",
+    # Taiwan (Expanded)
+    "TSM", "UMC", "ASX", "IMOS", "HIMX", "CHT",
+    # Canada (More)
+    "RY", "TD", "BNS", "BMO", "CM", "MFC", "SLF", "ENB", "TRP", "CNQ",
+    "SU", "CVE", "IMO", "CP", "CNI", "NTR", "BCE", "TU", "SHOP", "OTEX",
+    # Australia (ADRs)
+    "BHP", "RIO", "WBK", "ANZBY", "NABZY", "CMWAY",
+    # Other Developed
+    "TEVA", "NICE", "CYBR", "WIX", "MNDY", "GLOB",  # Israel
+    "CAAP", "PAC", "CIB", "BSBR",  # Latin America
+    # Emerging/Frontier
+    "BERY", "YPF", "GGAL", "BMA", "SUPV",  # Argentina
+    "KB", "SHG", "WF",  # Korea Banks
+    "CSAN", "PAGS", "STNE",  # Brazil Tech
+]
+
+# Cryptocurrencies (yfinance supported)
+CRYPTO_ASSETS = [
+    "BTC-USD", "ETH-USD", "BNB-USD", "XRP-USD", "ADA-USD", "SOL-USD",
+    "DOGE-USD", "DOT-USD", "MATIC-USD", "SHIB-USD", "TRX-USD", "AVAX-USD",
+    "LINK-USD", "ATOM-USD", "UNI-USD", "ETC-USD", "XMR-USD", "XLM-USD",
+    "BCH-USD", "ALGO-USD", "VET-USD", "FIL-USD", "ICP-USD", "AAVE-USD",
+    "SAND-USD", "MANA-USD", "AXS-USD", "THETA-USD", "EGLD-USD", "XTZ-USD",
+    "EOS-USD", "FLOW-USD", "MKR-USD", "SNX-USD", "GRT-USD", "LRC-USD",
+    "CRV-USD", "ENJ-USD", "BAT-USD", "COMP-USD", "YFI-USD", "SUSHI-USD",
+    "ZEC-USD", "DASH-USD", "NEO-USD", "WAVES-USD", "KSM-USD", "ZIL-USD",
+    "HBAR-USD", "ONE-USD", "HOT-USD", "CHZ-USD", "ENS-USD", "LDO-USD",
+    "APE-USD", "GMX-USD", "OP-USD", "ARB-USD", "PEPE-USD", "FLOKI-USD",
+]
+
+# Forex Pairs (major and crosses)
+FOREX_PAIRS = [
+    "EURUSD=X", "GBPUSD=X", "USDJPY=X", "USDCHF=X", "AUDUSD=X", "USDCAD=X",
+    "NZDUSD=X", "EURGBP=X", "EURJPY=X", "GBPJPY=X", "AUDJPY=X", "CADJPY=X",
+    "EURCHF=X", "GBPCHF=X", "AUDNZD=X", "EURAUD=X", "GBPAUD=X", "AUDCAD=X",
+    "USDMXN=X", "USDBRL=X", "USDZAR=X", "USDTRY=X", "USDINR=X", "USDCNY=X",
+    "USDHKD=X", "USDSGD=X", "USDKRW=X", "USDTHB=X", "USDPLN=X", "USDSEK=X",
+    "USDNOK=X", "USDDKK=X", "USDCZK=X", "USDHUF=X", "USDRUB=X",
+    "DX-Y.NYB",  # US Dollar Index
+]
+
+# Macro/Economic Indicators (via ETF proxies & indices)
+MACRO_INDICATORS = [
+    # Yield Curve Proxies
+    "TLT", "IEF", "SHY",  # Long/Med/Short Treasury
+    # Credit Spreads
+    "HYG", "LQD",  # High Yield vs Investment Grade
+    # Volatility
+    "^VIX",  # VIX Index
+    # Major Indices
+    "^GSPC", "^DJI", "^IXIC", "^RUT",  # US
+    "^FTSE", "^GDAXI", "^FCHI", "^N225", "^HSI",  # International
+    # Sector Rotation Indicators
+    "XLY", "XLP",  # Consumer Disc vs Staples (risk appetite)
+    "IWM", "SPY",  # Small vs Large (risk appetite)
+    "GLD", "SPY",  # Gold vs Stocks (fear gauge)
+]
+
+# Broad Market ETFs (for benchmarking)
+BROAD_MARKET_ETFS = [
+    # US Total Market
+    "SPY", "IVV", "VOO",  # S&P 500
+    "VTI", "ITOT", "SPTM",  # Total Market
+    "DIA",  # Dow
+    "QQQ", "QQQM",  # NASDAQ
+    "IWM", "VB", "IJR",  # Small Cap
+    "IWB", "VV",  # Large Cap
+    "MDY", "VO", "IJH",  # Mid Cap
+    # International
+    "VEU", "VXUS",  # All World ex-US
+    "VT", "ACWI",  # All World
+    "EFA", "VEA",  # Developed ex-US
+    "EEM", "VWO",  # Emerging Markets
+]
+
+# Asset class categories for UI grouping
+ASSET_CATEGORIES = {
+    "US Equities": ["sp500", "nasdaq100", "dow30", "russell2000", "growth", "value"],
+    "International Equities": ["international", "international_expanded", "country_etfs"],
+    "ETFs - Sector": ["sector_etfs"],
+    "ETFs - Factor/Smart Beta": ["factor_etfs"],
+    "ETFs - Thematic": ["thematic_etfs"],
+    "ETFs - Fixed Income": ["bond_etfs"],
+    "ETFs - Commodity": ["commodity_etfs"],
+    "ETFs - Leveraged": ["leveraged_etfs"],
+    "Crypto": ["crypto_assets"],
+    "Forex": ["forex"],
+    "Alternatives": ["reits", "mlps"],
+}
+
+
+def get_all_etfs() -> List[str]:
+    """Get all ETFs."""
+    all_etfs = set()
+    all_etfs.update(SECTOR_ETFS_FULL)
+    all_etfs.update(COUNTRY_ETFS)
+    all_etfs.update(BOND_ETFS)
+    all_etfs.update(COMMODITY_ETFS)
+    all_etfs.update(FACTOR_ETFS)
+    all_etfs.update(THEMATIC_ETFS)
+    all_etfs.update(LEVERAGED_ETFS)
+    all_etfs.update(BROAD_MARKET_ETFS)
+    return sorted(list(all_etfs))
+
+
+def get_global_universe() -> List[str]:
+    """Get comprehensive global universe including all asset classes."""
+    all_assets = set()
+
+    # US Equities
+    all_assets.update(SP500)
+    all_assets.update(NASDAQ100)
+    all_assets.update(DOW30)
+    all_assets.update(RUSSELL2000)
+    all_assets.update(GROWTH_STOCKS)
+    all_assets.update(VALUE_STOCKS)
+    all_assets.update(BIOTECH_SMALL)
+    all_assets.update(MIDCAP_SAMPLE)
+
+    # International
+    all_assets.update(INTERNATIONAL)
+    all_assets.update(INTERNATIONAL_EXPANDED)
+
+    # ETFs
+    all_assets.update(get_all_etfs())
+
+    # REITs, MLPs
+    all_assets.update(REITS)
+    all_assets.update(MLPS)
+
+    # Crypto stocks (not direct crypto)
+    all_assets.update(CRYPTO_STOCKS)
+
+    return sorted(list(all_assets))
+
+
+def get_global_universe_with_crypto() -> List[str]:
+    """Get global universe including crypto assets."""
+    all_assets = set(get_global_universe())
+    all_assets.update(CRYPTO_ASSETS)
+    return sorted(list(all_assets))
+
+
+def get_global_universe_full() -> List[str]:
+    """Get everything - stocks, ETFs, crypto, forex."""
+    all_assets = set(get_global_universe_with_crypto())
+    all_assets.update(FOREX_PAIRS)
+    return sorted(list(all_assets))
+
+
 def get_all_tickers():
     """Get comprehensive list of all major US stocks."""
     all_tickers = set(SP500)
@@ -518,7 +890,7 @@ def get_full_universe_dynamic(use_cache: bool = True) -> List[str]:
     - Russell indices (Wikipedia)
     Plus static lists for international, growth, value, sectors.
 
-    Returns ~2000-3000 unique tickers.
+    Returns ~2500+ unique tickers.
     """
     if not use_cache:
         clear_ticker_cache()
@@ -533,6 +905,7 @@ def get_full_universe_dynamic(use_cache: bool = True) -> List[str]:
     # Static lists for specialized categories
     all_tickers.update(DOW30)
     all_tickers.update(INTERNATIONAL)
+    all_tickers.update(INTERNATIONAL_EXPANDED)  # NEW: More international
     all_tickers.update(GROWTH_STOCKS)
     all_tickers.update(VALUE_STOCKS)
     all_tickers.update(REITS)
@@ -540,6 +913,16 @@ def get_full_universe_dynamic(use_cache: bool = True) -> List[str]:
     all_tickers.update(CRYPTO_STOCKS)
     all_tickers.update(MLPS)
     all_tickers.update(MIDCAP_SAMPLE)
+
+    # NEW: Add all ETFs
+    all_tickers.update(SECTOR_ETFS_FULL)
+    all_tickers.update(COUNTRY_ETFS)
+    all_tickers.update(BOND_ETFS)
+    all_tickers.update(COMMODITY_ETFS)
+    all_tickers.update(FACTOR_ETFS)
+    all_tickers.update(THEMATIC_ETFS)
+    all_tickers.update(BROAD_MARKET_ETFS)
+    # Note: Not including LEVERAGED_ETFS by default (risky)
 
     return sorted(list(all_tickers))
 
@@ -567,7 +950,9 @@ def get_tickers_by_market(market: str, dynamic: bool = False) -> list:
             "russell 3000": fetch_russell3000_dynamic,
             "full": get_full_universe_dynamic,
             "full_dynamic": get_full_universe_dynamic,
-            "everything": get_full_universe_dynamic,
+            "global": get_global_universe,
+            "global_crypto": get_global_universe_with_crypto,
+            "everything_full": get_global_universe_full,
         }
         if market.lower() in dynamic_markets:
             return dynamic_markets[market.lower()]()
@@ -595,10 +980,20 @@ def get_tickers_by_market(market: str, dynamic: bool = False) -> list:
         "value": VALUE_STOCKS,
         # International
         "international": INTERNATIONAL,
+        "international_expanded": INTERNATIONAL_EXPANDED,
         "adr": INTERNATIONAL,
         "foreign": INTERNATIONAL,
-        "global": INTERNATIONAL,
-        # Sectors/Themes
+        # ETFs - Categories
+        "all_etfs": get_all_etfs(),
+        "sector_etfs": SECTOR_ETFS_FULL,
+        "country_etfs": COUNTRY_ETFS,
+        "bond_etfs": BOND_ETFS,
+        "commodity_etfs": COMMODITY_ETFS,
+        "factor_etfs": FACTOR_ETFS,
+        "thematic_etfs": THEMATIC_ETFS,
+        "leveraged_etfs": LEVERAGED_ETFS,
+        "broad_etfs": BROAD_MARKET_ETFS,
+        # Alternatives
         "reits": REITS,
         "reit": REITS,
         "real estate": REITS,
@@ -612,28 +1007,54 @@ def get_tickers_by_market(market: str, dynamic: bool = False) -> list:
         "penny": PENNY_STOCKS,
         "otc": OTC_POPULAR,
         "spac": SPACS,
+        # Direct Crypto & Forex
+        "crypto_assets": CRYPTO_ASSETS,
+        "forex": FOREX_PAIRS,
         # Comprehensive
         "all": get_all_tickers(),
         "full": get_full_universe(),
-        "everything": get_full_universe()
+        "global": get_global_universe(),
+        "global_crypto": get_global_universe_with_crypto(),
+        "everything_full": get_global_universe_full(),
     }
     return markets.get(market.lower(), SP500)
 
 # Available markets for UI
 AVAILABLE_MARKETS = {
+    # === US EQUITIES ===
     "S&P 500 (503 stocks)": "sp500",
     "NASDAQ 100": "nasdaq100",
     "Dow Jones 30": "dow30",
     "Russell 2000 Small Caps": "russell2000",
-    "All Major US (~550)": "all",
-    "International ADRs": "international",
     "Growth Stocks": "growth",
     "Value Stocks": "value",
+    # === INTERNATIONAL ===
+    "International ADRs (Basic)": "international",
+    "International ADRs (Expanded)": "international_expanded",
+    # === ETFs ===
+    "ETFs - All (~500)": "all_etfs",
+    "ETFs - Sector": "sector_etfs",
+    "ETFs - Country/Region": "country_etfs",
+    "ETFs - Bonds/Fixed Income": "bond_etfs",
+    "ETFs - Commodities": "commodity_etfs",
+    "ETFs - Factor/Smart Beta": "factor_etfs",
+    "ETFs - Thematic": "thematic_etfs",
+    "ETFs - Leveraged (Caution)": "leveraged_etfs",
+    # === ALTERNATIVES ===
     "REITs": "reits",
-    "Biotech Small Caps": "biotech",
-    "Crypto-Related": "crypto",
-    "Cannabis": "cannabis",
     "MLPs": "mlp",
+    "Biotech Small Caps": "biotech",
+    "Crypto Stocks": "crypto",
+    "Cannabis": "cannabis",
+    # === CRYPTO (Direct) ===
+    "Crypto Assets (BTC, ETH, etc.)": "crypto_assets",
+    # === FOREX ===
+    "Forex Pairs": "forex",
+    # === COMPREHENSIVE ===
+    "All Major US (~550)": "all",
     "Full Universe - Static (~1040)": "full",
-    "Full Universe - Dynamic (~2500+)": "full_dynamic"
+    "Full Universe - Dynamic (~2500+)": "full_dynamic",
+    "Global Universe (~4000+)": "global",
+    "Global + Crypto (~4500+)": "global_crypto",
+    "EVERYTHING (~5000+)": "everything_full"
 }

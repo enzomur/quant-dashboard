@@ -272,9 +272,24 @@ class CovarianceEstimator:
 
         cov = cov_result.covariance.values
 
+        # Handle dimension mismatch - weights might be longer than covariance matrix
+        # if some tickers were dropped due to missing data
+        n_cov = cov.shape[0]
+        n_weights = len(weights)
+
+        if n_weights != n_cov:
+            # Truncate weights to match covariance matrix size
+            weights = weights[:n_cov]
+            # Renormalize weights to sum to 1
+            if np.sum(np.abs(weights)) > 0:
+                weights = weights / np.sum(np.abs(weights))
+
+        # Ensure weights is a numpy array
+        weights = np.asarray(weights).flatten()
+
         # Portfolio variance
         port_var = weights @ cov @ weights
-        port_vol = np.sqrt(port_var)
+        port_vol = np.sqrt(max(port_var, 1e-10))  # Prevent division by zero
 
         # Marginal risk contribution
         marginal_rc = cov @ weights / port_vol
@@ -283,10 +298,14 @@ class CovarianceEstimator:
         risk_contrib = weights * marginal_rc
 
         # Percentage contribution
-        pct_contrib = risk_contrib / risk_contrib.sum()
+        total_contrib = risk_contrib.sum()
+        if total_contrib != 0:
+            pct_contrib = risk_contrib / total_contrib
+        else:
+            pct_contrib = np.zeros_like(risk_contrib)
 
         return pd.DataFrame({
-            'Ticker': self.tickers,
+            'Ticker': self.tickers[:len(weights)],
             'Weight': weights,
             'Marginal Risk Contribution': marginal_rc,
             'Risk Contribution': risk_contrib,
