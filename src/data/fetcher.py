@@ -170,6 +170,161 @@ class DataFetcher:
 
         return pd.concat(all_data, axis=1)
 
+    def bulk_download(
+        self,
+        tickers: List[str],
+        period: str = "2y",
+        interval: str = "1d",
+        progress_callback=None,
+        skip_cache_check: bool = False
+    ) -> dict:
+        """
+        Bulk download data for all tickers at once using yf.download().
+        MUCH faster than individual fetches - downloads all in one API call.
+
+        Args:
+            tickers: List of ticker symbols
+            period: Data period (e.g., '1y', '2y', '5y', '10y', 'max')
+            interval: Data interval (e.g., '1d')
+            progress_callback: Optional callback(current, total, message) for progress updates
+            skip_cache_check: If True, skip checking individual caches (faster for large downloads)
+
+        Returns:
+            Dict mapping ticker -> DataFrame with OHLCV data
+        """
+        if not tickers:
+            return {}
+
+        cached_data = {}
+        tickers_to_fetch = list(tickers)
+
+        # For large downloads, skip individual cache checks (too slow for 2000+ files)
+        # Just download everything - yf.download is fast
+        if not skip_cache_check and len(tickers) < 100:
+            tickers_to_fetch = []
+            for ticker in tickers:
+                cache_key = self._get_cache_key(ticker, period, interval)
+                cache_path = self.cache_dir / f"{cache_key}.pkl"
+                if self._is_cache_valid(cache_path):
+                    try:
+                        with open(cache_path, 'rb') as f:
+                            cached_data[ticker] = pickle.load(f)
+                    except:
+                        tickers_to_fetch.append(ticker)
+                else:
+                    tickers_to_fetch.append(ticker)
+
+        if progress_callback:
+            if cached_data:
+                progress_callback(len(cached_data), len(tickers), f"Found {len(cached_data)} cached, downloading {len(tickers_to_fetch)}...")
+            else:
+                progress_callback(0, len(tickers), f"Downloading {len(tickers_to_fetch)} tickers...")
+
+        # Bulk download in batches (yfinance can struggle with too many at once)
+        if tickers_to_fetch:
+            batch_size = 500  # Download 500 at a time
+            total_batches = (len(tickers_to_fetch) + batch_size - 1) // batch_size
+
+            for batch_num in range(total_batches):
+                start_idx = batch_num * batch_size
+                end_idx = min(start_idx + batch_size, len(tickers_to_fetch))
+                batch_tickers = tickers_to_fetch[start_idx:end_idx]
+
+                if progress_callback:
+                    progress_callback(
+                        len(cached_data),
+                        len(tickers),
+                        f"Downloading batch {batch_num + 1}/{total_batches} ({len(batch_tickers)} tickers)..."
+                    )
+
+                try:
+                    df = yf.download(
+                        batch_tickers,
+                        period=period,
+                        interval=interval,
+                        group_by='ticker',
+                        auto_adjust=True,
+                        threads=True,
+                        progress=False
+                    )
+
+                    if not df.empty:
+                        if len(batch_tickers) == 1:
+                            ticker = batch_tickers[0]
+                            cached_data[ticker] = df
+                        else:
+                            # yfinance returns multi-index columns: (Ticker, OHLCV)
+                            # Get the unique tickers from the first level
+                            try:
+                                if isinstance(df.columns, pd.MultiIndex):
+                                    available_tickers = df.columns.get_level_values(0).unique().tolist()
+                                else:
+                                    # Single ticker case - columns are just OHLCV
+                                    available_tickers = batch_tickers[:1]
+
+                                for ticker in batch_tickers:
+                                    try:
+                                        if ticker in available_tickers:
+                                            ticker_df = df[ticker]
+                                            # Only drop rows where ALL values are NaN
+                                            if isinstance(ticker_df, pd.DataFrame):
+                                                ticker_df = ticker_df.dropna(how='all')
+                                            if len(ticker_df) > 0:
+                                                cached_data[ticker] = ticker_df
+                                    except KeyError:
+                                        pass
+                                    except Exception:
+                                        pass
+                            except Exception as e:
+                                print(f"Parse error: {e}")
+
+                except Exception as e:
+                    print(f"Batch {batch_num + 1} error: {e}")
+
+        if progress_callback:
+            progress_callback(len(cached_data), len(tickers), f"Downloaded {len(cached_data)} tickers")
+
+        return cached_data
+
+    def bulk_download_with_fundamentals(
+        self,
+        tickers: List[str],
+        period: str = "2y",
+        progress_callback=None
+    ) -> tuple:
+        """
+        Bulk download both price data and fundamentals.
+
+        Returns:
+            (price_data_dict, fundamentals_dict)
+        """
+        # First bulk download prices
+        price_data = self.bulk_download(tickers, period, progress_callback=progress_callback)
+
+        # Then fetch fundamentals in parallel
+        fundamentals = {}
+        successful_tickers = list(price_data.keys())
+
+        if progress_callback:
+            progress_callback(0, len(successful_tickers), "Fetching fundamentals...")
+
+        def fetch_fund(ticker):
+            try:
+                return ticker, self.fetch_fundamentals(ticker)
+            except:
+                return ticker, None
+
+        with ThreadPoolExecutor(max_workers=20) as executor:
+            futures = [executor.submit(fetch_fund, t) for t in successful_tickers]
+            for i, future in enumerate(as_completed(futures)):
+                ticker, fund = future.result()
+                if fund:
+                    fundamentals[ticker] = fund
+                if progress_callback and i % 50 == 0:
+                    progress_callback(i, len(successful_tickers), f"Fundamentals: {i}/{len(successful_tickers)}")
+
+        return price_data, fundamentals
+
     def get_returns(
         self,
         ticker: str,

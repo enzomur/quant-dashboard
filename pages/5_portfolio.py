@@ -18,13 +18,18 @@ import yaml
 
 st.set_page_config(
     page_title="Portfolio | Quant Trading",
-    page_icon="💼",
+    page_icon="P",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
 from src.data.fetcher import DataFetcher
 from src.ui.components import load_config, get_cached_fetcher, render_page_header, render_metrics_row
+from src.ui.theme import inject_css, render_top_nav
+
+# Theme and navigation
+inject_css()
+render_top_nav("portfolio")
 from src.ui.charts import create_pie_chart, create_equity_curve, create_drawdown_chart, COLORS
 from src.optimization import (
     PortfolioOptimizer,

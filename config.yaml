@@ -270,7 +270,7 @@ pca:
 
 scanner:
   batch_size: 50
-  max_workers: 4
+  max_workers: 12
 
 auto_optimizer:
   # Risk profile: conservative, moderate, aggressive

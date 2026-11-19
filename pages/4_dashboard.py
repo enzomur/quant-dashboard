@@ -17,9 +17,9 @@ import yaml
 # Page config
 st.set_page_config(
     page_title="Dashboard | Quant Trading",
-    page_icon="📊",
+    page_icon="$",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
 # Imports
@@ -33,7 +33,12 @@ from src.ui.charts import (
     create_pie_chart, create_bar_chart, COLORS,
     create_equity_curve, apply_default_layout
 )
+from src.ui.theme import inject_css, render_top_nav
 import plotly.graph_objects as go
+
+# Inject professional theme CSS
+inject_css()
+render_top_nav("dashboard")
 
 
 # Load config and fetcher
@@ -130,8 +135,8 @@ def render_top_picks(recommendations, title="Top Picks"):
         colors = {'HIGH': '#00C851', 'MEDIUM': '#ffbb33', 'LOW': '#ff8800'}
         return f'color: {colors.get(val, "#fff")}'
 
-    styled = df.style.applymap(color_action, subset=['Action'])
-    styled = styled.applymap(color_confidence, subset=['Confidence'])
+    styled = df.style.map(color_action, subset=['Action'])
+    styled = styled.map(color_confidence, subset=['Confidence'])
 
     st.dataframe(styled, use_container_width=True, hide_index=True)
 
@@ -194,12 +199,18 @@ def render_sector_signals(sector_signals):
         colors = {'OVERWEIGHT': '#00C851', 'UNDERWEIGHT': '#ff4444', 'NEUTRAL': '#888888'}
         return f'color: {colors.get(val, "#fff")}'
 
-    styled = df.style.applymap(color_signal, subset=['Signal'])
+    styled = df.style.map(color_signal, subset=['Signal'])
     st.dataframe(styled, use_container_width=True, hide_index=True)
 
 
-# Main page
-st.title("Quant Trading Dashboard")
+# Main page - title with refresh button
+title_col, refresh_col = st.columns([5, 1])
+with title_col:
+    st.title("Quant Trading Dashboard")
+with refresh_col:
+    st.write("")  # Spacing
+    force_refresh = st.button("Refresh", type="secondary")
+
 st.caption("Automated recommendations powered by multi-factor analysis")
 
 # How it works section
@@ -246,28 +257,9 @@ with st.expander("How Does This Dashboard Work?", expanded=False):
     4. Never invest more than you can afford to lose
     """)
 
-# Sidebar settings
-st.sidebar.header("Settings")
-
-risk_profile = st.sidebar.selectbox(
-    "Risk Profile",
-    options=['conservative', 'moderate', 'aggressive'],
-    index=1,
-    help="Adjusts position sizes and signal thresholds"
-)
-
-portfolio_value = st.sidebar.number_input(
-    "Portfolio Value ($)",
-    min_value=10000,
-    max_value=10000000,
-    value=100000,
-    step=10000
-)
-
-force_refresh = st.sidebar.button("Force Refresh", type="secondary")
-
-st.sidebar.markdown("---")
-st.sidebar.caption("Scans run automatically every 30 minutes")
+# Default settings
+risk_profile = 'moderate'
+portfolio_value = 100000
 
 # Get auto optimizer and daily brief
 try:
@@ -307,17 +299,17 @@ try:
             total_invested = portfolio_df['Value'].sum()
             st.caption(f"Total invested: ${total_invested:,.2f} | Cash remaining: ${portfolio_value - total_invested:,.2f}")
         else:
-            st.info("No portfolio suggestions available. This can happen if: (1) The scan is still running, (2) No stocks passed the filters, or (3) There was an issue fetching data. Try clicking 'Force Refresh'.")
+            st.info("No portfolio suggestions available. Run a scan on the Scanner page first, or click Refresh.")
 
     with col2:
         # Risk Alerts
         st.subheader("Risk Alerts")
         render_risk_alerts(brief.risk_alerts)
 
-        st.markdown("---")
-
-        # Sector Signals
-        render_sector_signals(brief.sector_signals)
+        # Sector Signals - only show section if there's data
+        if brief.sector_signals:
+            st.markdown("---")
+            render_sector_signals(brief.sector_signals)
 
         st.markdown("---")
 
@@ -330,6 +322,8 @@ try:
             st.metric("Avg Risk:Reward", f"{avg_rr:.1f}")
             st.metric("High Confidence Picks", f"{high_conf}/{len(brief.top_buys)}")
             st.metric("Total Opportunities", brief.scan_stats.get('total_scanned', 0))
+        else:
+            st.caption("Run a scan on Scanner page first.")
 
     # Stocks to Avoid
     if brief.top_sells:
@@ -337,22 +331,9 @@ try:
         with st.expander("Stocks to Avoid"):
             render_top_picks(brief.top_sells[:5], "")
 
-    # Navigation
-    st.markdown("---")
-    st.markdown("**Deep Dive**")
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.page_link("pages/4_signals.py", label="Full Signal Scanner")
-    with col2:
-        st.page_link("pages/5_portfolio.py", label="Portfolio Optimizer")
-    with col3:
-        st.page_link("pages/3_markets.py", label="Market Analysis")
-    with col4:
-        st.page_link("pages/2_research.py", label="Research Tools")
-
 except Exception as e:
     st.error(f"Error loading dashboard: {str(e)}")
-    st.info("Try clicking 'Force Refresh' in the sidebar or check your data connection.")
+    st.info("Try clicking Refresh above or check your data connection.")
 
     # Show manual scan option
     if st.button("Run Manual Scan"):

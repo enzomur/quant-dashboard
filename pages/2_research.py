@@ -15,22 +15,25 @@ import yaml
 
 st.set_page_config(
     page_title="Research | Quant Trading",
-    page_icon="🔬",
+    page_icon="R",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
 from src.data.fetcher import DataFetcher
 from src.ui.components import load_config, get_cached_fetcher, render_page_header
+from src.ui.theme import inject_css, render_top_nav
 
 config = load_config()
 fetcher = get_cached_fetcher()
 
+# Theme and navigation
+inject_css()
+render_top_nav("research")
+
 # Page header
-render_page_header(
-    "Research Tools",
-    "Statistical analysis and factor research"
-)
+st.title("Research Tools")
+st.caption("Statistical analysis and factor research")
 
 # How it works section
 with st.expander("How Does This Page Work?", expanded=False):

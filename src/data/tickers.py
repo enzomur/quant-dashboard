@@ -854,10 +854,57 @@ def get_global_universe_with_crypto() -> List[str]:
 
 
 def get_global_universe_full() -> List[str]:
-    """Get everything - stocks, ETFs, crypto, forex."""
-    all_assets = set(get_global_universe_with_crypto())
+    """Get everything - stocks, ETFs, crypto, forex, and all specialty lists."""
+    # Check cache first
+    cached = _load_from_cache("global_universe_full")
+    if cached:
+        return cached
+
+    all_assets = set()
+
+    # Start with dynamic fetching for most up-to-date lists
+    all_assets.update(fetch_sp500_dynamic())
+    all_assets.update(fetch_nasdaq100_dynamic())
+    all_assets.update(fetch_russell2000_dynamic())
+
+    # US Equities - static lists
+    all_assets.update(DOW30)
+    all_assets.update(GROWTH_STOCKS)
+    all_assets.update(VALUE_STOCKS)
+    all_assets.update(BIOTECH_SMALL)
+    all_assets.update(MIDCAP_SAMPLE)
+    all_assets.update(RUSSELL2000_SAMPLE)
+
+    # International
+    all_assets.update(INTERNATIONAL)
+    all_assets.update(INTERNATIONAL_EXPANDED)
+
+    # All ETFs including leveraged
+    all_assets.update(SECTOR_ETFS_FULL)
+    all_assets.update(COUNTRY_ETFS)
+    all_assets.update(BOND_ETFS)
+    all_assets.update(COMMODITY_ETFS)
+    all_assets.update(FACTOR_ETFS)
+    all_assets.update(THEMATIC_ETFS)
+    all_assets.update(LEVERAGED_ETFS)
+    all_assets.update(BROAD_MARKET_ETFS)
+
+    # Alternatives
+    all_assets.update(REITS)
+    all_assets.update(MLPS)
+    all_assets.update(CRYPTO_STOCKS)
+    all_assets.update(CANNABIS)
+    all_assets.update(PENNY_STOCKS)
+    all_assets.update(SPACS)
+    all_assets.update(OTC_POPULAR)
+
+    # Crypto and Forex
+    all_assets.update(CRYPTO_ASSETS)
     all_assets.update(FOREX_PAIRS)
-    return sorted(list(all_assets))
+
+    result = sorted(list(all_assets))
+    _save_to_cache("global_universe_full", result)
+    return result
 
 
 def get_all_tickers():
@@ -1056,5 +1103,5 @@ AVAILABLE_MARKETS = {
     "Full Universe - Dynamic (~2500+)": "full_dynamic",
     "Global Universe (~4000+)": "global",
     "Global + Crypto (~4500+)": "global_crypto",
-    "EVERYTHING (~5000+)": "everything_full"
+    "EVERYTHING (~2500)": "everything_full"
 }

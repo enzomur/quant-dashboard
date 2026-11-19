@@ -32,6 +32,7 @@ from ..factors.volatility import AdvancedVolatilityFactors
 from ..factors.liquidity import LiquidityFactors
 from ..factors.sector import SectorFactors
 from ..factors.composite import CompositeFactorCalculator, CompositeFactorConfig
+from ..factors.advanced import AdvancedFactors, AdvancedFactorScores, calculate_advanced_composite
 
 
 @dataclass
@@ -89,6 +90,21 @@ class Opportunity:
     # NEW: Sector factors
     sector: str = ""
     sector_score: float = 0.0
+    # ADVANCED FACTORS (Academic research-backed)
+    week52_high_pct: float = 0.0  # George & Hwang
+    breakout_score: float = 0.0
+    gross_profitability: float = 0.0  # Novy-Marx
+    accruals_quality: float = 0.0  # Sloan
+    fcf_yield: float = 0.0
+    betting_against_beta: float = 0.0  # Frazzini & Pedersen
+    size_score: float = 0.0  # SMB factor
+    max_drawdown: float = 0.0
+    sortino_ratio: float = 0.0
+    cvar_95: float = 0.0
+    spy_correlation: float = 0.0
+    obv_trend: float = 0.0
+    accumulation_distribution: float = 0.0
+    advanced_score: float = 0.0  # Combined advanced factor score
     signals: Dict[str, Any] = field(default_factory=dict)
 
 
@@ -128,6 +144,7 @@ class OpportunityScanner:
         self._returns_matrix: Optional[pd.DataFrame] = None
         self._market_returns: Optional[pd.Series] = None
         self._fundamentals_cache: Dict[str, dict] = {}
+        self._price_data: Dict[str, pd.DataFrame] = {}  # Pre-fetched price data
 
         # Initialize factor calculators
         self.fundamental_factors = FundamentalFactors()
@@ -165,12 +182,21 @@ class OpportunityScanner:
             Opportunity if data available, None otherwise
         """
         try:
-            # Fetch data
-            prices = self.fetcher.fetch_prices(ticker, self.period)
-            returns = self.fetcher.get_returns(ticker, self.period)
+            # Use pre-fetched data if available, otherwise fetch
+            if ticker in self._price_data:
+                prices = self._price_data[ticker]
+            else:
+                prices = self.fetcher.fetch_prices(ticker, self.period)
             market_returns = self._market_returns
 
-            if prices.empty or returns.empty or market_returns is None:
+            if prices.empty or market_returns is None:
+                return None
+
+            # Calculate returns directly from prices (eliminates redundant fetch)
+            close = prices['Close']
+            returns = np.log(close / close.shift(1)).dropna()
+
+            if returns.empty:
                 return None
 
             signals = {}
@@ -666,6 +692,43 @@ class OpportunityScanner:
             signals['risk_reward'] = risk_reward
             signals['hold_days'] = hold_days
 
+            # 21. ADVANCED FACTORS (Academic research-backed)
+            # Calculate advanced factors using pre-fetched market data
+            advanced_scores = AdvancedFactorScores()
+            advanced_score = 0.0
+
+            try:
+                # Get market prices for correlation/beta calculations
+                market_prices = None
+                if self._market_returns is not None:
+                    # Reconstruct prices from SPY returns if needed
+                    market_prices = self.fetcher.fetch_prices('SPY', self.period)
+
+                advanced_calc = AdvancedFactors(
+                    prices=prices,
+                    fundamentals=fundamentals,
+                    market_prices=market_prices,
+                    sector_prices=None  # TODO: Add sector ETF prices
+                )
+                advanced_scores = advanced_calc.calculate_all()
+                advanced_score = calculate_advanced_composite(advanced_scores)
+
+                signals['advanced_score'] = advanced_score
+                signals['week52_high_pct'] = advanced_scores.week52_high_pct
+                signals['breakout_score'] = advanced_scores.breakout_score
+                signals['gross_profitability'] = advanced_scores.gross_profitability
+                signals['accruals_quality'] = advanced_scores.accruals_quality
+                signals['fcf_yield'] = advanced_scores.fcf_yield
+                signals['max_drawdown'] = advanced_scores.max_drawdown
+                signals['sortino_ratio'] = advanced_scores.sortino_ratio
+                signals['obv_trend'] = advanced_scores.obv_trend
+            except Exception as e:
+                pass
+
+            # Blend advanced score into composite (20% weight)
+            if advanced_score != 0:
+                composite_score = composite_score * 0.8 + advanced_score * 0.2
+
             return Opportunity(
                 ticker=ticker,
                 composite_score=composite_score,
@@ -719,6 +782,21 @@ class OpportunityScanner:
                 # NEW: Sector
                 sector=sector,
                 sector_score=sector_score,
+                # ADVANCED FACTORS
+                week52_high_pct=advanced_scores.week52_high_pct,
+                breakout_score=advanced_scores.breakout_score,
+                gross_profitability=advanced_scores.gross_profitability,
+                accruals_quality=advanced_scores.accruals_quality,
+                fcf_yield=advanced_scores.fcf_yield,
+                betting_against_beta=advanced_scores.betting_against_beta,
+                size_score=advanced_scores.size_score,
+                max_drawdown=advanced_scores.max_drawdown,
+                sortino_ratio=advanced_scores.sortino_ratio,
+                cvar_95=advanced_scores.cvar_95,
+                spy_correlation=advanced_scores.spy_correlation,
+                obv_trend=advanced_scores.obv_trend,
+                accumulation_distribution=advanced_scores.accumulation_distribution,
+                advanced_score=advanced_score,
                 signals=signals
             )
 

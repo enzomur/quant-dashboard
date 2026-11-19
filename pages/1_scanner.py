@@ -24,8 +24,14 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.data.fetcher import DataFetcher
 from src.signals.opportunities import OpportunityScanner
 from src.factors.composite import CompositeFactorConfig
+from src.ui.theme import inject_css, render_top_nav
+from src.ui.components import render_opportunity_card, get_svg_icon
 
-st.set_page_config(page_title="Signals | Quant Trading", page_icon="🎯", layout="wide")
+st.set_page_config(page_title="Signals | Quant Trading", page_icon="*", layout="wide", initial_sidebar_state="collapsed")
+
+# Inject professional theme CSS
+inject_css()
+render_top_nav("scanner")
 
 @st.cache_data
 def load_config():
@@ -310,96 +316,137 @@ with st.expander("How to Use This Dashboard (Click to Expand)", expanded=False):
     13. **Idiosyncratic** - Stock-specific factors (PCA)
     """)
 
-# Sidebar
-with st.sidebar:
-    st.header("Universe Selection")
+# ============================================================================
+# SCAN CONFIGURATION (moved from sidebar to main content)
+# ============================================================================
+with st.expander("Scan Settings", expanded=True):
+    config_col1, config_col2, config_col3 = st.columns(3)
 
-    # Get available markets
-    available_markets = fetcher.get_available_markets()
-    market_options = list(available_markets.keys()) + ["Custom"]
+    with config_col1:
+        st.markdown("**Universe**")
+        available_markets = fetcher.get_available_markets()
+        market_options = list(available_markets.keys()) + ["Custom"]
 
-    # Default to "Full Universe - Dynamic (~2500+)" if available
-    default_idx = 0
-    for i, opt in enumerate(market_options):
-        if "Dynamic" in opt:
-            default_idx = i
-            break
+        # Default to S&P 500 for faster scans
+        default_idx = 0
+        for i, opt in enumerate(market_options):
+            if "S&P 500" in opt:
+                default_idx = i
+                break
 
-    universe_type = st.selectbox(
-        "Select Universe",
-        market_options,
-        index=default_idx
-    )
-
-    if universe_type == "Custom":
-        ticker_input = st.text_area(
-            "Enter Tickers (comma-separated)",
-            value="AAPL, MSFT, GOOGL, AMZN, META, NVDA, TSLA"
+        universe_type = st.selectbox(
+            "Select stocks to scan",
+            market_options,
+            index=default_idx,
+            label_visibility="collapsed"
         )
-        tickers = [t.strip().upper() for t in ticker_input.split(",") if t.strip()]
-        st.info(f"Using {len(tickers)} custom tickers")
-    else:
-        market_key = available_markets[universe_type]
-        # Use dynamic fetching for dynamic universe options
-        use_dynamic = "dynamic" in market_key.lower() or "Dynamic" in universe_type
-        tickers = fetcher.get_tickers_by_market(market_key, dynamic=use_dynamic)
-        st.success(f"Loaded {len(tickers)} stocks")
 
-    st.header("Settings")
-    period = st.selectbox("Period", ["1y", "2y", "5y"], index=1)
-    max_workers = st.slider("Parallel Workers", 5, 20, 10)
+        if universe_type == "Custom":
+            ticker_input = st.text_area(
+                "Tickers",
+                value="AAPL, MSFT, GOOGL, AMZN, META, NVDA, TSLA",
+                label_visibility="collapsed"
+            )
+            tickers = [t.strip().upper() for t in ticker_input.split(",") if t.strip()]
+            st.caption(f"{len(tickers)} tickers")
+        else:
+            market_key = available_markets[universe_type]
+            use_dynamic = "dynamic" in market_key.lower() or "Dynamic" in universe_type
+            tickers = fetcher.get_tickers_by_market(market_key, dynamic=use_dynamic)
+            st.caption(f"{len(tickers)} stocks")
 
-    st.subheader("Filters")
-    min_composite = st.number_input("Min Composite Score", value=0.0, min_value=-2.0, max_value=2.0, step=0.1, format="%.1f",
-                                     help="Filter out weak/negative opportunities. Higher = stronger overall signal.")
-    min_alpha = st.number_input("Min Alpha (Annual)", value=0.0, min_value=-1.0, max_value=1.0, step=0.05, format="%.2f",
-                                 help="Minimum excess return vs market. 0.10 = 10% annual outperformance required.")
-    max_alpha_pvalue = st.slider("Max Alpha p-value", 0.01, 0.50, 0.10,
-                                  help="Statistical significance of alpha. Lower = more confident the alpha is real. 0.05 = 95% confident, 0.10 = 90% confident. Higher values include less statistically significant results.")
-    min_cond_edge = st.number_input("Min Conditional Edge", value=0.0, min_value=0.0, max_value=0.20, step=0.01, format="%.2f",
-                                     help="Minimum probability edge from historical patterns. Example: 0.05 means the stock goes up 5% more often than average after certain conditions. Higher = stronger historical pattern.")
-    min_kelly = st.number_input("Min Kelly %", value=0.0, min_value=0.0, max_value=0.25, step=0.01, format="%.2f",
-                                 help="Only show stocks with meaningful position sizing. Kelly Criterion recommends this % of portfolio based on edge and odds.")
+    with config_col2:
+        st.markdown("**Time Period**")
+        period = st.selectbox(
+            "Period",
+            ["1y", "2y", "5y", "10y", "20y", "max"],
+            index=1,
+            label_visibility="collapsed",
+            help="Longer periods = more historical data for analysis"
+        )
+        max_workers = 12  # Fixed - parallel analysis workers
 
-    vol_filter = st.selectbox(
-        "Volatility Regime",
-        ['All', 'High', 'Normal', 'Low']
-    )
+    with config_col3:
+        st.markdown("**Quick Filters**")
+        min_composite = st.number_input(
+            "Min Score",
+            value=0.0, min_value=-2.0, max_value=2.0, step=0.1, format="%.1f",
+            help="Minimum composite score (-1 to +1). Higher = stronger signal."
+        )
+        vol_filter = st.selectbox(
+            "Volatility",
+            ['All', 'High', 'Normal', 'Low'],
+            help="Filter by recent volatility regime"
+        )
 
-    # NEW: Factor weight sliders
-    with st.expander("Factor Weights (Advanced)"):
-        st.caption("Adjust weights for composite score calculation")
+# Advanced filters in a collapsed expander
+with st.expander("Advanced Filters"):
+    filter_col1, filter_col2, filter_col3, filter_col4 = st.columns(4)
 
+    with filter_col1:
+        min_alpha = st.number_input(
+            "Min Alpha",
+            value=0.0, min_value=-1.0, max_value=1.0, step=0.05, format="%.2f",
+            help="Minimum annualized alpha (excess return vs market)"
+        )
+    with filter_col2:
+        max_alpha_pvalue = st.slider(
+            "Max p-value",
+            0.01, 0.50, 0.10,
+            help="Statistical confidence threshold. Lower = more confident."
+        )
+    with filter_col3:
+        min_cond_edge = st.number_input(
+            "Min Edge",
+            value=0.0, min_value=0.0, max_value=0.20, step=0.01, format="%.2f",
+            help="Minimum conditional probability edge"
+        )
+    with filter_col4:
+        min_kelly = st.number_input(
+            "Min Kelly %",
+            value=0.0, min_value=0.0, max_value=0.25, step=0.01, format="%.2f",
+            help="Minimum suggested position size"
+        )
+
+# Factor weights (hidden by default)
+with st.expander("Factor Weights (Advanced)"):
+    st.caption("Adjust how much each factor contributes to the composite score")
+    w_col1, w_col2, w_col3 = st.columns(3)
+
+    with w_col1:
         w_cond_prob = st.slider("Conditional Prob", 0.0, 0.30, 0.15, 0.01, key="w_cp")
         w_alpha = st.slider("Alpha", 0.0, 0.30, 0.12, 0.01, key="w_alpha")
         w_momentum = st.slider("Momentum", 0.0, 0.30, 0.12, 0.01, key="w_mom")
         w_mean_rev = st.slider("Mean Reversion", 0.0, 0.30, 0.10, 0.01, key="w_mr")
+
+    with w_col2:
         w_quality = st.slider("Quality", 0.0, 0.30, 0.10, 0.01, key="w_qual")
         w_valuation = st.slider("Valuation", 0.0, 0.30, 0.08, 0.01, key="w_val")
         w_sentiment = st.slider("Sentiment", 0.0, 0.30, 0.05, 0.01, key="w_sent")
         w_technical = st.slider("Technical", 0.0, 0.30, 0.05, 0.01, key="w_tech")
+
+    with w_col3:
         w_volatility = st.slider("Volatility", 0.0, 0.30, 0.04, 0.01, key="w_vol")
         w_liquidity = st.slider("Liquidity", 0.0, 0.30, 0.04, 0.01, key="w_liq")
         w_sector = st.slider("Sector", 0.0, 0.30, 0.04, 0.01, key="w_sec")
 
-        # Show total
-        total = w_cond_prob + w_alpha + w_momentum + w_mean_rev + w_quality + w_valuation + w_sentiment + w_technical + w_volatility + w_liquidity + w_sector + 0.06 + 0.05  # bayesian + idio
+        total = w_cond_prob + w_alpha + w_momentum + w_mean_rev + w_quality + w_valuation + w_sentiment + w_technical + w_volatility + w_liquidity + w_sector + 0.06 + 0.05
         if abs(total - 1.0) > 0.02:
-            st.warning(f"Weights sum to {total:.2f} (will be normalized)")
+            st.warning(f"Sum: {total:.0%} (will normalize)")
         else:
-            st.success(f"Weights sum to {total:.2f}")
+            st.success(f"Sum: {total:.0%}")
 
 # Store factor config in session state
 if 'factor_config' not in st.session_state:
     st.session_state.factor_config = CompositeFactorConfig()
 
 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-    "🎯 Scan & Top Picks",
-    "🔍 Stock Deep Dive",
-    "📊 Signal Comparison",
-    "📈 Factor Analysis",
-    "🌍 Sector Rotation",
-    "📋 Options Ideas"
+    "Scan & Top Picks",
+    "Stock Deep Dive",
+    "Signal Comparison",
+    "Factor Analysis",
+    "Sector Rotation",
+    "Options Ideas"
 ])
 
 # === TAB 1: Universe Scan with Top Picks ===
@@ -407,7 +454,7 @@ with tab1:
     st.header("Universe Scan & Top Picks")
 
     # Tutorial for this tab
-    with st.expander("📖 How to use this tab"):
+    with st.expander(" How to use this tab"):
         st.markdown("""
         **This tab scans stocks and shows you the BEST opportunities with simple A-F grades.**
 
@@ -428,12 +475,34 @@ with tab1:
     if scan_button:
         progress_bar = st.progress(0)
         status_text = st.empty()
+        opportunities_found = st.empty()
 
-        def scan_single_ticker(ticker, fetcher, period):
-            """Scan a single ticker - for parallel execution."""
+        # STEP 1: Bulk download ALL price data at once (MUCH faster than individual fetches)
+        status_text.text(f"Bulk downloading {len(tickers)} tickers... (this is fast)")
+
+        def update_progress(current, total, message):
+            progress_bar.progress(min(current / max(total, 1) * 0.3, 0.3))  # First 30% for download
+            status_text.text(message)
+
+        # This downloads ALL tickers in ONE API call - way faster than individual fetches
+        price_data = fetcher.bulk_download(tickers, period, progress_callback=update_progress)
+
+        status_text.text(f"Downloaded {len(price_data)} tickers. Getting market data...")
+
+        # Get SPY market returns for alpha calculation
+        market_returns = fetcher.get_returns('SPY', period)
+
+        progress_bar.progress(0.35)
+        status_text.text(f"Analyzing {len(price_data)} stocks...")
+
+        def scan_single_ticker_with_data(ticker, ticker_data, fetcher, period, market_returns):
+            """Scan a single ticker using pre-downloaded data."""
             try:
                 scanner = OpportunityScanner([ticker], fetcher, period)
-                scanner.load_data()  # Load market data first
+                # INJECT pre-fetched data instead of downloading again
+                scanner._market_returns = market_returns
+                scanner._price_data = {ticker: ticker_data}
+                scanner._data_loaded = True
                 opp = scanner.scan_ticker(ticker)
                 if opp is not None:
                     return {
@@ -455,28 +524,28 @@ with tab1:
                         'Mean Reversion': opp.mean_reversion_score,
                         'PCA Residual': opp.pca_residual,
                         'Vol Regime': opp.volatility_regime,
-                        # NEW: Quality factors
+                        # Quality factors
                         'Quality Score': opp.quality_score,
                         'Piotroski F': opp.piotroski_f_score,
                         'Altman Z': opp.altman_z_score,
-                        # NEW: Valuation
+                        # Valuation
                         'Valuation Score': opp.valuation_score,
                         'P/E': opp.pe_ratio,
                         'P/B': opp.pb_ratio,
-                        # NEW: Sentiment
+                        # Sentiment
                         'Sentiment Score': opp.sentiment_score,
                         'Short Ratio': opp.short_ratio,
                         'Analyst': opp.analyst_rating,
-                        # NEW: Technical
+                        # Technical
                         'Technical Score': opp.technical_score,
                         'RSI': opp.rsi_14,
                         'MACD': opp.macd_signal,
-                        # NEW: Advanced Volatility
+                        # Advanced Volatility
                         'Regime': opp.regime,
                         'Leverage Effect': opp.leverage_effect,
-                        # NEW: Liquidity
+                        # Liquidity
                         'Liquidity Score': opp.liquidity_score,
-                        # NEW: Sector
+                        # Sector
                         'Sector Score': opp.sector_score,
                         # Kelly position sizing
                         'Kelly %': opp.recommended_position,
@@ -494,24 +563,29 @@ with tab1:
 
         try:
             opportunities = []
-            total = len(tickers)
+            downloaded_tickers = list(price_data.keys())
+            total = len(downloaded_tickers)
             completed = 0
+            found_count = 0
 
-            status_text.text(f"Scanning {total} stocks...")
-
+            # STEP 2: Analyze in parallel (fast since data is already downloaded)
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 futures = {
-                    executor.submit(scan_single_ticker, t, fetcher, period): t
-                    for t in tickers
+                    executor.submit(scan_single_ticker_with_data, t, price_data[t], fetcher, period, market_returns): t
+                    for t in downloaded_tickers
                 }
 
                 for future in as_completed(futures):
                     result = future.result()
                     if result is not None:
                         opportunities.append(result)
+                        found_count += 1
                     completed += 1
-                    progress_bar.progress(completed / total)
-                    status_text.text(f"Scanned {completed}/{total} stocks... Found {len(opportunities)} opportunities")
+                    # Progress from 35% to 100%
+                    progress_bar.progress(0.35 + (completed / total) * 0.65)
+                    ticker_name = futures[future]
+                    status_text.text(f"Analyzing {ticker_name}... ({completed}/{total})")
+                    opportunities_found.text(f"Found {found_count} opportunities")
 
             progress_bar.progress(1.0)
 
@@ -612,7 +686,7 @@ with tab1:
             # TOP PICKS SUMMARY - SIMPLIFIED VIEW
             # ================================================================
             st.markdown("---")
-            st.header("🎯 TOP PICKS - Simple Recommendations")
+            st.header("* TOP PICKS - Simple Recommendations")
             st.caption("Grades synthesize all 13 factors. Focus on A and B grades.")
 
             # Calculate grades for all filtered stocks
@@ -642,37 +716,22 @@ with tab1:
             if len(top_picks) > 0:
                 st.success(f"Found {len(top_picks)} strong opportunities (A or B grade)")
 
-                # Display as cards
+                # Display as professional cards using new component
+                cols = st.columns(2)
                 for i, (_, pick) in enumerate(top_picks.iterrows()):
-                    grade_color = get_grade_color(pick['Grade'])
-
-                    col1, col2, col3, col4, col5 = st.columns([1, 2, 2, 2, 2])
-
-                    with col1:
-                        st.markdown(f"<h1 style='color:{grade_color}; margin:0;'>{pick['Grade']}</h1>", unsafe_allow_html=True)
-
-                    with col2:
-                        st.markdown(f"**{pick['Ticker']}**")
-                        st.caption(pick['Sector'][:20] if pick['Sector'] else 'N/A')
-
-                    with col3:
-                        st.markdown(f"**{pick['Action']}**")
-                        st.caption(f"Score: {pick['Score']:.0f}%")
-
-                    with col4:
-                        entry = pick['Entry']
-                        stop = pick['Stop']
-                        target = pick['Target']
-                        st.markdown(f"Entry: **${entry:.2f}**")
-                        st.caption(f"Stop: ${stop:.2f} → Target: ${target:.2f}")
-
-                    with col5:
-                        rr = pick['R:R']
-                        kelly = pick['Kelly %']
-                        st.markdown(f"R:R **{rr:.1f}:1**")
-                        st.caption(f"Position: {kelly:.1%} of portfolio")
-
-                    st.markdown("---")
+                    with cols[i % 2]:
+                        render_opportunity_card(
+                            ticker=pick['Ticker'],
+                            grade=pick['Grade'],
+                            action=pick['Action'],
+                            score=pick['Score'],
+                            sector=pick['Sector'] if pick['Sector'] else '',
+                            entry_price=pick['Entry'],
+                            stop_loss=pick['Stop'],
+                            target_price=pick['Target'],
+                            risk_reward=pick['R:R'],
+                            kelly_pct=pick['Kelly %']
+                        )
             else:
                 st.warning("No A or B grade opportunities found. Try loosening your filters.")
 
@@ -695,7 +754,7 @@ with tab1:
             # ================================================================
             # DETAILED VIEW (Original)
             # ================================================================
-            st.header("📊 Detailed Analysis")
+            st.header(" Detailed Analysis")
 
             # Summary metrics
             col1, col2, col3, col4 = st.columns(4)
@@ -1565,10 +1624,10 @@ with tab5:
 
 # === TAB 6: Options Ideas ===
 with tab6:
-    st.header("📋 Options Investment Ideas")
+    st.header(" Options Investment Ideas")
 
     # Tutorial
-    with st.expander("📖 How to use this tab"):
+    with st.expander(" How to use this tab"):
         st.markdown("""
         **This tab identifies options opportunities based on stock analysis.**
 
