@@ -317,9 +317,7 @@ class OpportunityScanner:
                 0.10 * pca_residual * 10
             )
 
-            # Penalize high alpha p-value
-            if alpha_pvalue > 0.1:
-                composite_score *= 0.8
+            # Note: Quality penalties applied after CompositeFactorScorer calculates final score
 
             # 9. Calculate entry price and action
             current_price = prices['Close'].iloc[-1]
@@ -450,7 +448,11 @@ class OpportunityScanner:
             sector = ""
 
             try:
-                fundamentals = self.fetcher.fetch_fundamentals(ticker)
+                # Use cached fundamentals if available (much faster)
+                if ticker in self._fundamentals_cache:
+                    fundamentals = self._fundamentals_cache[ticker]
+                else:
+                    fundamentals = self.fetcher.fetch_fundamentals(ticker)
                 if fundamentals and 'error' not in fundamentals:
                     sector = fundamentals.get('sector', '')
                     quality_result = self.fundamental_factors.calculate(fundamentals)
@@ -651,6 +653,45 @@ class OpportunityScanner:
             reward = target_price - entry_price
             risk_reward = reward / risk if risk > 0 else 0
 
+            # === QUALITY GATES & PENALTIES ===
+            # These prevent momentum-only stocks with bad fundamentals from ranking high
+
+            # 1. Penalize NEGATIVE alpha heavily (underperforming market)
+            if alpha < 0:
+                # Negative alpha = losing to market. Severe penalty.
+                # -10% alpha → 0.7x, -30% alpha → 0.3x, -50%+ alpha → 0.2x
+                alpha_penalty = max(0.2, 1 + alpha * 2.5)
+                composite_score *= alpha_penalty
+
+            # 2. Penalize high alpha p-value (not statistically significant)
+            if alpha_pvalue > 0.5:
+                composite_score *= 0.7  # Very insignificant alpha
+            elif alpha_pvalue > 0.1:
+                composite_score *= 0.85
+
+            # 3. Penalize extreme volatility (>35% annualized)
+            if recent_vol > 0.50:
+                composite_score *= 0.5  # Very high vol
+            elif recent_vol > 0.40:
+                composite_score *= 0.7
+            elif recent_vol > 0.35:
+                composite_score *= 0.85
+
+            # 4. Penalize poor risk/reward ratio
+            if risk_reward < 1.0:
+                # R/R below 1 means potential loss > potential gain
+                rr_penalty = max(0.4, risk_reward)  # Scales from 0.4 to 1.0
+                composite_score *= rr_penalty
+            elif risk_reward < 1.5:
+                # Marginal R/R gets small penalty
+                composite_score *= 0.9
+
+            # 5. Penalize very low Kelly fraction (model has low confidence)
+            if kelly_fraction < 0.03:
+                composite_score *= 0.6  # Very low conviction
+            elif kelly_fraction < 0.05:
+                composite_score *= 0.8  # Low conviction
+
             # Adjust Kelly position size by R:R ratio
             # If R:R < 1.5, reduce position size proportionally
             if risk_reward > 0:
@@ -725,9 +766,11 @@ class OpportunityScanner:
             except Exception as e:
                 pass
 
-            # Blend advanced score into composite (20% weight)
+            # Blend advanced score into composite
+            # Advanced factors (Gross Profitability, Accruals, FCF Yield, 52-Week High)
+            # are the most research-backed predictors, so give them significant weight
             if advanced_score != 0:
-                composite_score = composite_score * 0.8 + advanced_score * 0.2
+                composite_score = composite_score * 0.65 + advanced_score * 0.35
 
             return Opportunity(
                 ticker=ticker,

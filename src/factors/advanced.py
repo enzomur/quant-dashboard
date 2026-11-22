@@ -539,23 +539,33 @@ def calculate_advanced_composite(scores: AdvancedFactorScores) -> float:
     """
     Calculate composite score from advanced factors.
 
+    Weights based on academic research:
+    - Tier 1 (60%): Gross Profitability, Accruals, 52-Week High
+    - Tier 2 (25%): FCF Yield, BAB, Sortino
+    - Tier 3 (15%): Volume, breakout, size
+
     Returns:
         Composite score from -1 to 1
     """
     weights = {
-        'week52_high_pct': 0.12,  # Strong predictor
-        'breakout_score': 0.08,
-        'gross_profitability': 0.12,  # Novy-Marx factor
-        'accruals_quality': 0.08,  # Sloan factor
-        'fcf_yield': 0.10,
-        'betting_against_beta': 0.08,
-        'size_score': 0.05,
-        'sortino_ratio': 0.08,
-        'obv_trend': 0.06,
-        'accumulation_distribution': 0.06,
-        'relative_strength_sector': 0.07,
-        'max_drawdown': 0.05,  # Penalty for high drawdown
-        'spy_correlation': 0.05,  # Lower = better diversification
+        # TIER 1: Strongest predictive factors (60% total)
+        'gross_profitability': 0.20,  # Novy-Marx (2013) - "As powerful as value"
+        'accruals_quality': 0.15,     # Sloan (1996) - Low accruals = higher returns
+        'week52_high_pct': 0.15,      # George & Hwang (2004) - Better than raw momentum
+        'fcf_yield': 0.10,            # Lakonishok - Cash generation beats earnings
+
+        # TIER 2: Strong secondary factors (25% total)
+        'betting_against_beta': 0.08, # Frazzini & Pedersen - Low beta outperforms
+        'sortino_ratio': 0.08,        # Downside risk-adjusted (position sizing)
+        'max_drawdown': 0.05,         # Risk management - penalize high drawdown
+        'spy_correlation': 0.04,      # Lower = better diversification
+
+        # TIER 3: Supplementary factors (15% total)
+        'breakout_score': 0.05,
+        'size_score': 0.04,           # Small cap premium
+        'obv_trend': 0.03,
+        'accumulation_distribution': 0.02,
+        'relative_strength_sector': 0.01,
     }
 
     total_score = 0.0

@@ -265,7 +265,10 @@ class DataFetcher:
                                 for ticker in batch_tickers:
                                     try:
                                         if ticker in available_tickers:
-                                            ticker_df = df[ticker]
+                                            ticker_df = df[ticker].copy()
+                                            # Flatten MultiIndex columns if present
+                                            if isinstance(ticker_df.columns, pd.MultiIndex):
+                                                ticker_df.columns = ticker_df.columns.get_level_values(-1)
                                             # Only drop rows where ALL values are NaN
                                             if isinstance(ticker_df, pd.DataFrame):
                                                 ticker_df = ticker_df.dropna(how='all')

@@ -47,7 +47,46 @@ def get_fetcher():
 
 fetcher = get_fetcher()
 
+# Add clear cache button in sidebar
+with st.sidebar:
+    if st.button("Clear All Caches"):
+        st.cache_data.clear()
+        st.cache_resource.clear()
+        st.success("Caches cleared! Refresh the page.")
+        st.rerun()
+
 st.title("Trading Opportunity Scanner")
+
+# Scan Mode Selection
+mode_col1, mode_col2 = st.columns([1, 3])
+with mode_col1:
+    scan_mode = st.radio(
+        "Scan Mode",
+        ["Short-Term Trading", "Long-Term Holdings"],
+        horizontal=True,
+        help="Short-Term: momentum & technical focus. Long-Term: quality & value focus."
+    )
+
+# Mode-specific descriptions
+with mode_col2:
+    if scan_mode == "Short-Term Trading":
+        st.caption("**Short-Term Mode:** Finds momentum plays, mean reversion opportunities, and technical setups for trades lasting days to weeks.")
+    else:
+        st.caption("**Long-Term Mode:** Finds quality companies at good valuations for positions lasting months to years. Focuses on fundamentals over price action.")
+
+# Set default weights based on mode
+if scan_mode == "Long-Term Holdings":
+    DEFAULT_WEIGHTS = {
+        'cond_prob': 0.05, 'alpha': 0.10, 'momentum': 0.05, 'mean_rev': 0.10,
+        'quality': 0.25, 'valuation': 0.25, 'sentiment': 0.05, 'technical': 0.05,
+        'volatility': 0.05, 'liquidity': 0.03, 'sector': 0.02
+    }
+else:
+    DEFAULT_WEIGHTS = {
+        'cond_prob': 0.15, 'alpha': 0.12, 'momentum': 0.12, 'mean_rev': 0.10,
+        'quality': 0.10, 'valuation': 0.08, 'sentiment': 0.05, 'technical': 0.05,
+        'volatility': 0.04, 'liquidity': 0.04, 'sector': 0.04
+    }
 
 # How it works section
 with st.expander("How Does This Scanner Work?", expanded=False):
@@ -81,6 +120,23 @@ with st.expander("How Does This Scanner Work?", expanded=False):
     6. **Sentiment (15%):** What do analysts think? Is short interest low?
 
     These are combined into a **Composite Score** from -1 (very negative) to +1 (very positive).
+
+    ---
+
+    **Academic Research-Backed Factors (35% of score)**
+
+    The scanner also includes factors proven by peer-reviewed academic research:
+
+    | Factor | Weight | Research | What It Measures |
+    |--------|--------|----------|------------------|
+    | **Gross Profitability** | 20% | Novy-Marx (2013) | Revenue minus COGS / Assets |
+    | **Accruals Quality** | 15% | Sloan (1996) | Low accruals = higher returns |
+    | **52-Week High Proximity** | 15% | George & Hwang (2004) | Better momentum than raw returns |
+    | **FCF Yield** | 10% | Lakonishok et al. | Cash generation > earnings |
+    | **Betting Against Beta** | 8% | Frazzini & Pedersen | Low-beta stocks outperform |
+    | **Sortino Ratio** | 8% | Risk-adjusted | Downside risk measure |
+
+    **Why these factors?** The winning combo in research is **Momentum + Quality**. High momentum with high profitability and low accruals screens out "junk momentum" stocks that crash.
 
     ---
 
@@ -157,18 +213,21 @@ def calculate_investment_grade(row):
     max_score = 0
 
     # Composite Score (most important) - 30 points max
+    # Adjusted thresholds for stricter penalty system
     max_score += 30
     composite = row.get('Composite Score', 0)
-    if composite >= 0.8:
-        score += 30
-    elif composite >= 0.5:
-        score += 24
-    elif composite >= 0.3:
-        score += 18
-    elif composite >= 0.1:
-        score += 12
+    if composite >= 0.5:
+        score += 30  # Exceptional after penalties
+    elif composite >= 0.35:
+        score += 25  # Very good
+    elif composite >= 0.25:
+        score += 20  # Good
+    elif composite >= 0.15:
+        score += 15  # Decent
+    elif composite >= 0.05:
+        score += 10  # Marginal
     elif composite >= 0:
-        score += 6
+        score += 5   # Weak positive
 
     # Risk/Reward - 20 points max
     max_score += 20
@@ -392,8 +451,8 @@ with st.expander("Advanced Filters"):
     with filter_col2:
         max_alpha_pvalue = st.slider(
             "Max p-value",
-            0.01, 0.50, 0.10,
-            help="Statistical confidence threshold. Lower = more confident."
+            0.01, 1.0, 1.0,
+            help="Statistical confidence threshold. Lower = more confident. Set to 1.0 to disable."
         )
     with filter_col3:
         min_cond_edge = st.number_input(
@@ -410,25 +469,29 @@ with st.expander("Advanced Filters"):
 
 # Factor weights (hidden by default)
 with st.expander("Factor Weights (Advanced)"):
-    st.caption("Adjust how much each factor contributes to the composite score")
+    if scan_mode == "Long-Term Holdings":
+        st.caption("**Long-Term Mode Defaults:** Heavy weight on Quality (25%) and Valuation (25%)")
+    else:
+        st.caption("**Short-Term Mode Defaults:** Balanced momentum, alpha, and mean reversion")
+
     w_col1, w_col2, w_col3 = st.columns(3)
 
     with w_col1:
-        w_cond_prob = st.slider("Conditional Prob", 0.0, 0.30, 0.15, 0.01, key="w_cp")
-        w_alpha = st.slider("Alpha", 0.0, 0.30, 0.12, 0.01, key="w_alpha")
-        w_momentum = st.slider("Momentum", 0.0, 0.30, 0.12, 0.01, key="w_mom")
-        w_mean_rev = st.slider("Mean Reversion", 0.0, 0.30, 0.10, 0.01, key="w_mr")
+        w_cond_prob = st.slider("Conditional Prob", 0.0, 0.30, DEFAULT_WEIGHTS['cond_prob'], 0.01, key="w_cp")
+        w_alpha = st.slider("Alpha", 0.0, 0.30, DEFAULT_WEIGHTS['alpha'], 0.01, key="w_alpha")
+        w_momentum = st.slider("Momentum", 0.0, 0.30, DEFAULT_WEIGHTS['momentum'], 0.01, key="w_mom")
+        w_mean_rev = st.slider("Mean Reversion", 0.0, 0.30, DEFAULT_WEIGHTS['mean_rev'], 0.01, key="w_mr")
 
     with w_col2:
-        w_quality = st.slider("Quality", 0.0, 0.30, 0.10, 0.01, key="w_qual")
-        w_valuation = st.slider("Valuation", 0.0, 0.30, 0.08, 0.01, key="w_val")
-        w_sentiment = st.slider("Sentiment", 0.0, 0.30, 0.05, 0.01, key="w_sent")
-        w_technical = st.slider("Technical", 0.0, 0.30, 0.05, 0.01, key="w_tech")
+        w_quality = st.slider("Quality", 0.0, 0.30, DEFAULT_WEIGHTS['quality'], 0.01, key="w_qual")
+        w_valuation = st.slider("Valuation", 0.0, 0.30, DEFAULT_WEIGHTS['valuation'], 0.01, key="w_val")
+        w_sentiment = st.slider("Sentiment", 0.0, 0.30, DEFAULT_WEIGHTS['sentiment'], 0.01, key="w_sent")
+        w_technical = st.slider("Technical", 0.0, 0.30, DEFAULT_WEIGHTS['technical'], 0.01, key="w_tech")
 
     with w_col3:
-        w_volatility = st.slider("Volatility", 0.0, 0.30, 0.04, 0.01, key="w_vol")
-        w_liquidity = st.slider("Liquidity", 0.0, 0.30, 0.04, 0.01, key="w_liq")
-        w_sector = st.slider("Sector", 0.0, 0.30, 0.04, 0.01, key="w_sec")
+        w_volatility = st.slider("Volatility", 0.0, 0.30, DEFAULT_WEIGHTS['volatility'], 0.01, key="w_vol")
+        w_liquidity = st.slider("Liquidity", 0.0, 0.30, DEFAULT_WEIGHTS['liquidity'], 0.01, key="w_liq")
+        w_sector = st.slider("Sector", 0.0, 0.30, DEFAULT_WEIGHTS['sector'], 0.01, key="w_sec")
 
         total = w_cond_prob + w_alpha + w_momentum + w_mean_rev + w_quality + w_valuation + w_sentiment + w_technical + w_volatility + w_liquidity + w_sector + 0.06 + 0.05
         if abs(total - 1.0) > 0.02:
@@ -489,19 +552,46 @@ with tab1:
 
         status_text.text(f"Downloaded {len(price_data)} tickers. Getting market data...")
 
+        # Debug: show if download worked
+        if len(price_data) == 0:
+            st.error("Bulk download returned 0 tickers. Check your internet connection.")
+            st.stop()
+
         # Get SPY market returns for alpha calculation
         market_returns = fetcher.get_returns('SPY', period)
 
-        progress_bar.progress(0.35)
+        if market_returns is None or len(market_returns) == 0:
+            st.error("Could not fetch market (SPY) data.")
+            st.stop()
+
+        progress_bar.progress(0.32)
+
+        # BULK FETCH FUNDAMENTALS - this is the main speedup!
+        # Without this, each ticker fetches fundamentals individually (very slow)
+        status_text.text(f"Fetching fundamentals for {len(price_data)} stocks (batch mode)...")
+
+        def fundamentals_progress(current, total):
+            progress_bar.progress(0.32 + (current / max(total, 1) * 0.18))  # 32% to 50%
+            status_text.text(f"Fetching fundamentals... {current}/{total}")
+
+        fundamentals_cache = fetcher.fetch_fundamentals_batch(
+            list(price_data.keys()),
+            use_cache=True,
+            max_workers=20,  # Parallel fundamentals fetch
+            progress_callback=fundamentals_progress
+        )
+
+        progress_bar.progress(0.50)
         status_text.text(f"Analyzing {len(price_data)} stocks...")
 
-        def scan_single_ticker_with_data(ticker, ticker_data, fetcher, period, market_returns):
+        def scan_single_ticker_with_data(ticker, ticker_data, fetcher, period, market_returns, fundamentals_cache):
             """Scan a single ticker using pre-downloaded data."""
             try:
                 scanner = OpportunityScanner([ticker], fetcher, period)
                 # INJECT pre-fetched data instead of downloading again
                 scanner._market_returns = market_returns
                 scanner._price_data = {ticker: ticker_data}
+                scanner._fundamentals_cache = fundamentals_cache  # Inject pre-fetched fundamentals
                 scanner._data_loaded = True
                 opp = scanner.scan_ticker(ticker)
                 if opp is not None:
@@ -555,10 +645,18 @@ with tab1:
                         'Vol Trend': opp.vol_trend,
                         # Exit signals
                         'Trail Stop %': opp.trailing_stop_pct,
-                        'Hold Days': opp.hold_days
+                        'Hold Days': opp.hold_days,
+                        # Advanced factors
+                        '52W High %': opp.week52_high_pct,
+                        'Gross Profit': opp.gross_profitability,
+                        'FCF Yield': opp.fcf_yield,
+                        'Sortino': opp.sortino_ratio,
+                        'Max DD': opp.max_drawdown,
+                        'Advanced Score': opp.advanced_score
                     }
             except Exception as e:
-                pass
+                import traceback
+                return {'error': ticker, 'message': str(e)}
             return None
 
         try:
@@ -567,30 +665,43 @@ with tab1:
             total = len(downloaded_tickers)
             completed = 0
             found_count = 0
+            errors = []
 
-            # STEP 2: Analyze in parallel (fast since data is already downloaded)
+            # Debug info
+            st.info(f"Starting analysis of {total} tickers with {max_workers} workers...")
+
+            # STEP 2: Analyze in parallel (fast since prices AND fundamentals are pre-fetched)
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 futures = {
-                    executor.submit(scan_single_ticker_with_data, t, price_data[t], fetcher, period, market_returns): t
+                    executor.submit(scan_single_ticker_with_data, t, price_data[t], fetcher, period, market_returns, fundamentals_cache): t
                     for t in downloaded_tickers
                 }
 
                 for future in as_completed(futures):
                     result = future.result()
                     if result is not None:
-                        opportunities.append(result)
-                        found_count += 1
+                        if 'error' in result:
+                            errors.append(result)
+                        else:
+                            opportunities.append(result)
+                            found_count += 1
                     completed += 1
-                    # Progress from 35% to 100%
-                    progress_bar.progress(0.35 + (completed / total) * 0.65)
+                    # Progress from 50% to 100% (prices 0-30%, fundamentals 30-50%, analysis 50-100%)
+                    progress_bar.progress(0.50 + (completed / total) * 0.50)
                     ticker_name = futures[future]
                     status_text.text(f"Analyzing {ticker_name}... ({completed}/{total})")
                     opportunities_found.text(f"Found {found_count} opportunities")
 
             progress_bar.progress(1.0)
 
+            # Show errors if any
+            if errors:
+                with st.expander(f"{len(errors)} tickers had errors"):
+                    for err in errors[:10]:
+                        st.text(f"{err['error']}: {err['message']}")
+
             if not opportunities:
-                st.warning("No opportunities found. Try different tickers or settings.")
+                st.warning(f"No opportunities found. Analyzed {total} tickers, {len(errors)} had errors.")
             else:
                 opportunities_df = pd.DataFrame(opportunities)
                 opportunities_df = opportunities_df.sort_values('Composite Score', ascending=False)
@@ -716,22 +827,47 @@ with tab1:
             if len(top_picks) > 0:
                 st.success(f"Found {len(top_picks)} strong opportunities (A or B grade)")
 
-                # Display as professional cards using new component
+                # Display as simple cards (reliable rendering)
                 cols = st.columns(2)
                 for i, (_, pick) in enumerate(top_picks.iterrows()):
                     with cols[i % 2]:
-                        render_opportunity_card(
-                            ticker=pick['Ticker'],
-                            grade=pick['Grade'],
-                            action=pick['Action'],
-                            score=pick['Score'],
-                            sector=pick['Sector'] if pick['Sector'] else '',
-                            entry_price=pick['Entry'],
-                            stop_loss=pick['Stop'],
-                            target_price=pick['Target'],
-                            risk_reward=pick['R:R'],
-                            kelly_pct=pick['Kelly %']
-                        )
+                        grade = pick['Grade']
+                        grade_colors = {'A': '#00C851', 'B': '#33b5e5', 'C': '#ffbb33', 'D': '#ff8800', 'F': '#ff4444'}
+                        color = grade_colors.get(grade, '#888')
+
+                        st.markdown(f"""
+                        <div style="background: #1a1a2e; border-radius: 12px; padding: 16px; margin-bottom: 12px; border-left: 4px solid {color};">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <span style="font-size: 24px; font-weight: bold; color: {color};">{grade}</span>
+                                    <span style="font-size: 20px; font-weight: 600; margin-left: 12px;">{pick['Ticker']}</span>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div style="font-size: 14px; color: {color};">{pick['Action'][:20]}</div>
+                                    <div style="font-size: 12px; color: #888;">Score: {pick['Score']:.0f}%</div>
+                                </div>
+                            </div>
+                            <div style="margin-top: 12px; font-size: 13px; color: #aaa;">{pick['Sector'] or 'N/A'}</div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 12px;">
+                                <div style="background: #252540; padding: 8px; border-radius: 6px; text-align: center;">
+                                    <div style="font-size: 11px; color: #888;">Entry</div>
+                                    <div style="font-weight: 600;">${pick['Entry']:.2f}</div>
+                                </div>
+                                <div style="background: rgba(255,68,68,0.1); padding: 8px; border-radius: 6px; text-align: center;">
+                                    <div style="font-size: 11px; color: #ff4444;">Stop</div>
+                                    <div style="font-weight: 600; color: #ff4444;">${pick['Stop']:.2f}</div>
+                                </div>
+                                <div style="background: rgba(0,200,81,0.1); padding: 8px; border-radius: 6px; text-align: center;">
+                                    <div style="font-size: 11px; color: #00C851;">Target</div>
+                                    <div style="font-weight: 600; color: #00C851;">${pick['Target']:.2f}</div>
+                                </div>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-top: 12px; font-size: 13px;">
+                                <span>R:R <strong>{pick['R:R']:.1f}:1</strong></span>
+                                <span>Position: <strong>{pick['Kelly %']:.1%}</strong></span>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
             else:
                 st.warning("No A or B grade opportunities found. Try loosening your filters.")
 
