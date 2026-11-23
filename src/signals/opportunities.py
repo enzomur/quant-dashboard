@@ -222,14 +222,38 @@ class OpportunityScanner:
             # 3. Factor Regression (Alpha)
             factor_reg = FactorRegression()
             try:
-                capm_result = factor_reg.capm_regression(returns, market_returns)
+                # Align returns with market returns by date index
+                aligned_returns = returns.copy()
+                aligned_market = market_returns.copy()
+
+                # Normalize indexes to remove timezone info for alignment
+                if hasattr(aligned_returns.index, 'tz') and aligned_returns.index.tz is not None:
+                    aligned_returns.index = aligned_returns.index.tz_localize(None)
+                if hasattr(aligned_market.index, 'tz') and aligned_market.index.tz is not None:
+                    aligned_market.index = aligned_market.index.tz_localize(None)
+
+                # Convert to date-only index for alignment (removes time component issues)
+                aligned_returns.index = pd.to_datetime(aligned_returns.index).normalize()
+                aligned_market.index = pd.to_datetime(aligned_market.index).normalize()
+
+                # Find common dates
+                common_dates = aligned_returns.index.intersection(aligned_market.index)
+                if len(common_dates) < 30:
+                    raise ValueError(f"Insufficient overlapping dates: {len(common_dates)}")
+
+                aligned_returns = aligned_returns.loc[common_dates].sort_index()
+                aligned_market = aligned_market.loc[common_dates].sort_index()
+
+                capm_result = factor_reg.capm_regression(aligned_returns, aligned_market)
                 alpha = capm_result.alpha * 252  # Annualized
                 alpha_pvalue = capm_result.alpha_pvalue
                 beta = capm_result.betas['market']
                 signals['alpha'] = alpha
                 signals['beta'] = beta
                 signals['r_squared'] = capm_result.r_squared
-            except Exception:
+            except Exception as e:
+                # Log the error for debugging
+                signals['alpha_error'] = str(e)
                 alpha = 0
                 alpha_pvalue = 1.0
                 beta = 1.0
