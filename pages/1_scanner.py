@@ -777,11 +777,6 @@ with tab1:
         filtered = filtered[filtered['Alpha (Annual)'] >= min_alpha]
         st.caption(f"After alpha filter (>= {min_alpha}): {len(filtered)} of {before}")
 
-        # LONG-TERM MODE: Require positive alpha (must beat the market)
-        if scan_mode == "Long-Term Holdings":
-            before = len(filtered)
-            filtered = filtered[filtered['Alpha (Annual)'] > 0]
-            st.caption(f"After Long-Term positive alpha requirement: {len(filtered)} of {before}")
 
         before = len(filtered)
         filtered = filtered[filtered['Alpha p-value'] <= max_alpha_pvalue]
