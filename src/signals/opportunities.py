@@ -692,6 +692,39 @@ class OpportunityScanner:
             elif kelly_fraction < 0.05:
                 composite_score *= 0.8  # Low conviction
 
+            # 6. Penalize stocks trading ABOVE their target price (already overshot)
+            if current_price > target_price:
+                # Target is below current price - this is NOT a buy
+                composite_score *= 0.1  # Severe penalty - essentially disqualify
+
+            # 7. Penalize stocks far above entry price (not actionable now)
+            # Calculate how far current price is from entry
+            price_above_entry_pct = (current_price - entry_price) / entry_price if entry_price > 0 else 0
+            if price_above_entry_pct > 0.20:
+                # More than 20% above entry - severe penalty
+                composite_score *= 0.3
+            elif price_above_entry_pct > 0.10:
+                # 10-20% above entry - moderate penalty
+                composite_score *= 0.5
+            elif price_above_entry_pct > 0.05:
+                # 5-10% above entry - small penalty
+                composite_score *= 0.7
+
+            # 8. Recalculate R/R from CURRENT price for more accurate ranking
+            # This penalizes stocks where the "good R/R" is only hypothetical
+            current_risk = current_price - stop_loss
+            current_reward = target_price - current_price
+            current_rr = current_reward / current_risk if current_risk > 0 else 0
+
+            # If current R/R is poor (even if entry R/R looks good), penalize
+            if current_rr < 0:
+                # Negative R/R from current price (target below current)
+                composite_score *= 0.1
+            elif current_rr < 0.5:
+                composite_score *= 0.4
+            elif current_rr < 1.0:
+                composite_score *= 0.6
+
             # Adjust Kelly position size by R:R ratio
             # If R:R < 1.5, reduce position size proportionally
             if risk_reward > 0:

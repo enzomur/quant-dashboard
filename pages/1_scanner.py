@@ -595,10 +595,25 @@ with tab1:
         progress_bar.progress(0.50)
         status_text.text(f"Analyzing {len(price_data)} stocks...")
 
-        def scan_single_ticker_with_data(ticker, ticker_data, fetcher, period, market_returns, fundamentals_cache):
+        # Create factor config based on scan mode
+        factor_config = CompositeFactorConfig(
+            conditional_prob_weight=DEFAULT_WEIGHTS['cond_prob'],
+            alpha_weight=DEFAULT_WEIGHTS['alpha'],
+            momentum_weight=DEFAULT_WEIGHTS['momentum'],
+            mean_reversion_weight=DEFAULT_WEIGHTS['mean_rev'],
+            quality_weight=DEFAULT_WEIGHTS['quality'],
+            valuation_weight=DEFAULT_WEIGHTS['valuation'],
+            sentiment_weight=DEFAULT_WEIGHTS['sentiment'],
+            technical_weight=DEFAULT_WEIGHTS['technical'],
+            volatility_weight=DEFAULT_WEIGHTS['volatility'],
+            liquidity_weight=DEFAULT_WEIGHTS['liquidity'],
+            sector_weight=DEFAULT_WEIGHTS['sector'],
+        )
+
+        def scan_single_ticker_with_data(ticker, ticker_data, fetcher, period, market_returns, fundamentals_cache, factor_config):
             """Scan a single ticker using pre-downloaded data."""
             try:
-                scanner = OpportunityScanner([ticker], fetcher, period)
+                scanner = OpportunityScanner([ticker], fetcher, period, factor_config=factor_config)
                 # INJECT pre-fetched data instead of downloading again
                 scanner._market_returns = market_returns
                 scanner._price_data = {ticker: ticker_data}
@@ -684,7 +699,7 @@ with tab1:
             # STEP 2: Analyze in parallel (fast since prices AND fundamentals are pre-fetched)
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 futures = {
-                    executor.submit(scan_single_ticker_with_data, t, price_data[t], fetcher, period, market_returns, fundamentals_cache): t
+                    executor.submit(scan_single_ticker_with_data, t, price_data[t], fetcher, period, market_returns, fundamentals_cache, factor_config): t
                     for t in downloaded_tickers
                 }
 
