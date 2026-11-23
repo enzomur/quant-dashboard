@@ -529,11 +529,22 @@ with tab1:
         **Grade meanings:** A = Strong Buy, B = Buy, C = Hold, D = Weak, F = Avoid
         """)
 
-    col1, col2 = st.columns([3, 1])
+    col1, col2, col3 = st.columns([3, 1, 1])
     with col1:
         st.write(f"**Selected Universe:** {len(tickers)} stocks")
     with col2:
         scan_button = st.button("Run Scan", type="primary", use_container_width=True)
+    with col3:
+        if st.button("Clear Results", use_container_width=True):
+            # Clear all cached scan results from session state
+            keys_to_clear = ['opportunities', 'filtered_opportunities', 'grades_df', 'tickers']
+            for key in keys_to_clear:
+                if key in st.session_state:
+                    del st.session_state[key]
+            st.cache_data.clear()
+            st.cache_resource.clear()
+            st.success("Cleared! Run a new scan.")
+            st.rerun()
 
     if scan_button:
         progress_bar = st.progress(0)
