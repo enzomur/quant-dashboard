@@ -740,10 +740,10 @@ class OpportunityScanner:
 
             try:
                 # Get market prices for correlation/beta calculations
-                market_prices = None
-                if self._market_returns is not None:
-                    # Reconstruct prices from SPY returns if needed
-                    market_prices = self.fetcher.fetch_prices('SPY', self.period)
+                # Use cached market prices to avoid fetching SPY 2500+ times
+                if not hasattr(self, '_market_prices') or self._market_prices is None:
+                    self._market_prices = self.fetcher.fetch_prices('SPY', self.period)
+                market_prices = self._market_prices
 
                 advanced_calc = AdvancedFactors(
                     prices=prices,
