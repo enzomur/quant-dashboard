@@ -687,11 +687,26 @@ class OpportunityScanner:
                 alpha_penalty = max(0.2, 1 + alpha * 2.5)
                 composite_score *= alpha_penalty
 
-            # 2. Penalize high alpha p-value (not statistically significant)
-            if alpha_pvalue > 0.5:
-                composite_score *= 0.7  # Very insignificant alpha
+            # 2. Alpha statistical significance (critical for long-term investing)
+            # Reward statistically significant alpha, penalize insignificant
+            if alpha_pvalue < 0.01:
+                # Highly significant alpha - boost score
+                composite_score *= 1.4
+            elif alpha_pvalue < 0.05:
+                # Significant alpha - moderate boost
+                composite_score *= 1.25
+            elif alpha_pvalue < 0.10:
+                # Marginally significant - small boost
+                composite_score *= 1.1
+            elif alpha_pvalue > 0.5:
+                # Very insignificant alpha - penalize heavily
+                composite_score *= 0.5
+            elif alpha_pvalue > 0.3:
+                # Insignificant alpha - moderate penalty
+                composite_score *= 0.65
             elif alpha_pvalue > 0.1:
-                composite_score *= 0.85
+                # Somewhat insignificant - small penalty
+                composite_score *= 0.8
 
             # 3. Penalize extreme volatility (>35% annualized)
             if recent_vol > 0.50:
