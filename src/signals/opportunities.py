@@ -764,6 +764,28 @@ class OpportunityScanner:
             elif current_rr < 1.0:
                 composite_score *= 0.6
 
+            # 9. Mean Reversion Penalty for Long-Term Holdings
+            # Negative mean_reversion_score = stock is ABOVE its moving averages (extended)
+            # For long-term holds, prefer stocks near or below their mean (better entry)
+            if mean_reversion_score < -2.0:
+                # Severely extended above mean - high pullback risk
+                composite_score *= 0.5
+            elif mean_reversion_score < -1.5:
+                # Significantly extended
+                composite_score *= 0.65
+            elif mean_reversion_score < -1.0:
+                # Moderately extended
+                composite_score *= 0.8
+            elif mean_reversion_score < -0.5:
+                # Slightly extended
+                composite_score *= 0.9
+            elif mean_reversion_score > 1.5:
+                # Oversold - good entry for long-term (boost)
+                composite_score *= 1.15
+            elif mean_reversion_score > 1.0:
+                # Somewhat oversold - slight boost
+                composite_score *= 1.1
+
             # Adjust Kelly position size by R:R ratio
             # If R:R < 1.5, reduce position size proportionally
             if risk_reward > 0:
